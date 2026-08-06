@@ -191,7 +191,7 @@ class BinanceDemoEngine {
     /**
      * Binance Testnet: Place Stop Loss Order (STOP_MARKET)
      */
-    async sendTestnetStopLossOrder(symbol, side, slPrice) {
+    async sendTestnetStopLossOrder(symbol, side, slPrice, quantity = null) {
         if (!this.testnetApiKey || !this.testnetApiSecret || typeof CryptoJS === 'undefined') return null;
 
         try {
@@ -216,10 +216,31 @@ class BinanceDemoEngine {
                         console.log(`🛡️ Binance Testnet Stop Loss Placed (${symbol} ${side} @ $${formattedSl}):`, resData);
                         return resData;
                     } else {
-                        console.warn(`[Binance Stop Loss Skip ${resData.code}]: ${resData.msg}`);
+                        console.warn(`[Binance Stop Loss closePosition skip ${resData.code}]: ${resData.msg}`);
                     }
                 } catch (e) {
                     console.warn(`Stop Loss order failed for ${url}:`, e);
+                }
+            }
+
+            // Fallback: If closePosition failed, retry with quantity & reduceOnly=true
+            if (quantity && quantity > 0) {
+                console.log(`🛡️ Retrying Stop Loss with reduceOnly=true for ${symbol}...`);
+                const fbTimestamp = Date.now();
+                const fbParams = `symbol=${symbol}&side=${side}&type=STOP_MARKET&stopPrice=${formattedSl}&quantity=${quantity}&reduceOnly=true&workingType=MARK_PRICE&recvWindow=10000&timestamp=${fbTimestamp}`;
+                const fbSig = CryptoJS.HmacSHA256(fbParams, this.testnetApiSecret).toString(CryptoJS.enc.Hex);
+
+                const fbUrl = `/_testnet/fapi/v1/order?${fbParams}&signature=${fbSig}`;
+                const resp = await fetch(fbUrl, {
+                    method: 'POST',
+                    headers: { 'X-MBX-APIKEY': this.testnetApiKey }
+                });
+                const resData = await resp.json();
+                if (resp.ok) {
+                    console.log(`🛡️ Binance Testnet Stop Loss Placed via reduceOnly (${symbol} ${side} @ $${formattedSl}):`, resData);
+                    return resData;
+                } else {
+                    console.warn(`[Binance Stop Loss Fallback ${resData.code}]: ${resData.msg}`);
                 }
             }
         } catch (err) {
@@ -231,7 +252,7 @@ class BinanceDemoEngine {
     /**
      * Binance Testnet: Place Take Profit Order (TAKE_PROFIT_MARKET)
      */
-    async sendTestnetTakeProfitOrder(symbol, side, tpPrice) {
+    async sendTestnetTakeProfitOrder(symbol, side, tpPrice, quantity = null) {
         if (!this.testnetApiKey || !this.testnetApiSecret || typeof CryptoJS === 'undefined') return null;
 
         try {
@@ -256,10 +277,31 @@ class BinanceDemoEngine {
                         console.log(`🎯 Binance Testnet Take Profit Placed (${symbol} ${side} @ $${formattedTp}):`, resData);
                         return resData;
                     } else {
-                        console.warn(`[Binance Take Profit Skip ${resData.code}]: ${resData.msg}`);
+                        console.warn(`[Binance Take Profit closePosition skip ${resData.code}]: ${resData.msg}`);
                     }
                 } catch (e) {
                     console.warn(`Take Profit order failed for ${url}:`, e);
+                }
+            }
+
+            // Fallback: If closePosition failed, retry with quantity & reduceOnly=true
+            if (quantity && quantity > 0) {
+                console.log(`🎯 Retrying Take Profit with reduceOnly=true for ${symbol}...`);
+                const fbTimestamp = Date.now();
+                const fbParams = `symbol=${symbol}&side=${side}&type=TAKE_PROFIT_MARKET&stopPrice=${formattedTp}&quantity=${quantity}&reduceOnly=true&workingType=MARK_PRICE&recvWindow=10000&timestamp=${fbTimestamp}`;
+                const fbSig = CryptoJS.HmacSHA256(fbParams, this.testnetApiSecret).toString(CryptoJS.enc.Hex);
+
+                const fbUrl = `/_testnet/fapi/v1/order?${fbParams}&signature=${fbSig}`;
+                const resp = await fetch(fbUrl, {
+                    method: 'POST',
+                    headers: { 'X-MBX-APIKEY': this.testnetApiKey }
+                });
+                const resData = await resp.json();
+                if (resp.ok) {
+                    console.log(`🎯 Binance Testnet Take Profit Placed via reduceOnly (${symbol} ${side} @ $${formattedTp}):`, resData);
+                    return resData;
+                } else {
+                    console.warn(`[Binance Take Profit Fallback ${resData.code}]: ${resData.msg}`);
                 }
             }
         } catch (err) {
@@ -519,11 +561,14 @@ class BinanceDemoEngine {
             const testnetRes = await this.sendTestnetOrder(symbol, side, quantity);
             if (!testnetRes) return false;
 
+            // Wait 600ms for Binance position execution to register on testnet
+            await new Promise(resolve => setTimeout(resolve, 600));
+
             // Step 4: Send Stop Loss Order (STOP_MARKET)
-            await this.sendTestnetStopLossOrder(symbol, reverseSide, slPrice);
+            await this.sendTestnetStopLossOrder(symbol, reverseSide, slPrice, quantity);
 
             // Step 5: Send Take Profit Order (TAKE_PROFIT_MARKET)
-            await this.sendTestnetTakeProfitOrder(symbol, reverseSide, tpPrice);
+            await this.sendTestnetTakeProfitOrder(symbol, reverseSide, tpPrice, quantity);
 
             // Perform immediate live sync
             setTimeout(() => this.syncTestnetAll(), 800);

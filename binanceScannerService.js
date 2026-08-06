@@ -147,8 +147,10 @@ class BinanceScannerService {
                     // Select dynamically from active signal coins across the market
                     const signalCoin = signalCoins[Math.floor(Math.random() * signalCoins.length)];
                     const dir = signalCoin.signal === 'BUY_LONG' ? 'LONG' : 'SHORT';
-                    console.log(`🤖 Multi-Coin Auto-Trader triggered on ${signalCoin.symbol} (${dir}) @ $${signalCoin.price}`);
-                    window.binanceDemoEngine.openPosition(signalCoin.symbol, dir, signalCoin.price);
+                    const slPrice = dir === 'LONG' ? signalCoin.price * 0.985 : signalCoin.price * 1.015;
+                    const tpPrice = dir === 'LONG' ? signalCoin.price * 1.030 : signalCoin.price * 0.970;
+                    console.log(`🤖 Multi-Coin Auto-Trader triggered on ${signalCoin.symbol} (${dir}) @ $${signalCoin.price} [SL: $${slPrice.toFixed(4)} | TP: $${tpPrice.toFixed(4)}]`);
+                    window.binanceDemoEngine.openPosition(signalCoin.symbol, dir, signalCoin.price, slPrice, tpPrice);
                 }
             }
 
