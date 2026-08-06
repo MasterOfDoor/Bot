@@ -89,8 +89,9 @@ class BinanceFuturesDataService {
 
         const binanceSymbol = this.formatSymbol(symbol);
 
-        let binanceInterval = '1h';
-        if (interval === '15m') binanceInterval = '15m';
+        let binanceInterval = '15m';
+        if (interval === '5m') binanceInterval = '5m';
+        else if (interval === '15m') binanceInterval = '15m';
         else if (interval === '1h') binanceInterval = '1h';
         else if (interval === '4h') binanceInterval = '4h';
         else if (interval === '1d') binanceInterval = '1d';
