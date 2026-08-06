@@ -1,0 +1,5 @@
+/_testnet/*  https://testnet.binancefuture.com/:splat  200
+/_futures/*  https://fapi.binance.com/:splat  200
+/_spot/*     https://api.binance.com/:splat   200
+/_yahoo/*    https://query2.finance.yahoo.com/v8/finance/chart/:splat  200
+/*           /index.html  200
