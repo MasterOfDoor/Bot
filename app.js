@@ -1660,9 +1660,16 @@ class App {
                                 </div>
                             </div>
                             <div class="pos-target-track-box mono">
-                                <div class="pos-targets-row">
-                                    <span class="text-danger font-bold">🛡️ SL: $${pos.slPrice ? pos.slPrice.toFixed(precision) : '-'}</span>
-                                    <span class="text-success font-bold">🎯 TP: $${pos.tpPrice ? pos.tpPrice.toFixed(precision) : '-'}</span>
+                                <div class="pos-targets-row" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+                                    <div>
+                                        <span class="text-danger font-bold">🛡️ SL: $${pos.slPrice ? pos.slPrice.toFixed(precision) : '-'}</span>
+                                        <span class="text-success font-bold" style="margin-left:8px;">🎯 TP: $${pos.tpPrice ? pos.tpPrice.toFixed(precision) : '-'}</span>
+                                    </div>
+                                    ${this.demoEngine.useTestnetApi ? `
+                                        <button class="btn-resend-sltp" data-symbol="${pos.symbol}" style="background:rgba(59,130,246,0.18); border:1px solid rgba(59,130,246,0.45); color:#60a5fa; padding:3px 8px; border-radius:4px; font-size:0.75rem; cursor:pointer; font-weight:600;">
+                                            ⚡ SL/TP Binance'e İlet
+                                        </button>
+                                    ` : ''}
                                 </div>
                             </div>
                         </div>
@@ -1680,6 +1687,25 @@ class App {
                             const lastPx = (this.displayData && this.displayData.symbol === sym && currentPrice) ? currentPrice : null;
                             this.demoEngine.closeCurrentPosition(sym, lastPx, 'MANUEL');
                             this.updateDemoUI();
+                        }
+                    });
+                });
+
+                // Hook up resend SL/TP button
+                const resendBtns = this.activePositionsGrid.querySelectorAll('.btn-resend-sltp');
+                resendBtns.forEach(btn => {
+                    btn.addEventListener('click', async () => {
+                        const sym = btn.dataset.symbol;
+                        const pos = this.demoEngine.activePositions.find(p => p.symbol === sym);
+                        if (pos) {
+                            btn.innerText = '⏳ İletiliyor...';
+                            btn.disabled = true;
+                            const reverseSide = pos.direction === 'LONG' ? 'SELL' : 'BUY';
+                            if (pos.slPrice) await this.demoEngine.sendTestnetStopLossOrder(pos.symbol, reverseSide, pos.slPrice, pos.quantity);
+                            if (pos.tpPrice) await this.demoEngine.sendTestnetTakeProfitOrder(pos.symbol, reverseSide, pos.tpPrice, pos.quantity);
+                            await this.demoEngine.syncTestnetAll();
+                            btn.innerText = '✅ İletildi';
+                            setTimeout(() => this.updateDemoUI(), 1000);
                         }
                     });
                 });

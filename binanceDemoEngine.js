@@ -211,7 +211,7 @@ class BinanceDemoEngine {
     }
 
     /**
-     * Binance Testnet: Place Stop Loss Order (via /fapi/v1/algoOrder & fallback)
+     * Binance Testnet: Place Stop Loss Order (via /fapi/v1/algoOrder & fallbacks)
      */
     async sendTestnetStopLossOrder(symbol, side, slPrice, quantity = null) {
         if (!this.testnetApiKey || !this.testnetApiSecret || typeof CryptoJS === 'undefined') return null;
@@ -219,10 +219,10 @@ class BinanceDemoEngine {
         try {
             const formattedSl = this.formatPricePrecision(symbol, slPrice);
 
-            // Step 1: Binance USDS-M Futures Algo Order API (/fapi/v1/algoOrder)
+            // Step 1: Binance USDS-M Futures Algo Order API (/fapi/v1/algoOrder) with closePosition=true
             const algoTimestamp = Date.now();
-            let algoParams = `symbol=${symbol}&side=${side}&type=STOP_MARKET&stopPrice=${formattedSl}&closePosition=true&workingType=MARK_PRICE&recvWindow=10000&timestamp=${algoTimestamp}`;
-            let algoSig = CryptoJS.HmacSHA256(algoParams, this.testnetApiSecret).toString(CryptoJS.enc.Hex);
+            const algoParams = `symbol=${symbol}&side=${side}&algoType=CONDITIONAL&type=STOP_MARKET&stopPrice=${formattedSl}&closePosition=true&workingType=MARK_PRICE&recvWindow=10000&timestamp=${algoTimestamp}`;
+            const algoSig = CryptoJS.HmacSHA256(algoParams, this.testnetApiSecret).toString(CryptoJS.enc.Hex);
 
             const algoEndpoints = [
                 `/_testnet/fapi/v1/algoOrder?${algoParams}&signature=${algoSig}`,
@@ -239,6 +239,8 @@ class BinanceDemoEngine {
                     if (resp.ok) {
                         console.log(`🛡️ Binance Testnet Stop Loss Placed via AlgoOrder (${symbol} ${side} @ $${formattedSl}):`, resData);
                         return resData;
+                    } else {
+                        console.warn(`[Binance Stop Loss AlgoOrder ${resData.code}]: ${resData.msg}`);
                     }
                 } catch (e) {}
             }
@@ -246,7 +248,7 @@ class BinanceDemoEngine {
             // Step 2: Retry with quantity & reduceOnly via AlgoOrder
             if (quantity && quantity > 0) {
                 const qtyTimestamp = Date.now();
-                const qtyParams = `symbol=${symbol}&side=${side}&type=STOP_MARKET&stopPrice=${formattedSl}&quantity=${quantity}&reduceOnly=true&workingType=MARK_PRICE&recvWindow=10000&timestamp=${qtyTimestamp}`;
+                const qtyParams = `symbol=${symbol}&side=${side}&algoType=CONDITIONAL&type=STOP_MARKET&stopPrice=${formattedSl}&quantity=${quantity}&reduceOnly=true&workingType=MARK_PRICE&recvWindow=10000&timestamp=${qtyTimestamp}`;
                 const qtySig = CryptoJS.HmacSHA256(qtyParams, this.testnetApiSecret).toString(CryptoJS.enc.Hex);
 
                 const qtyEndpoints = [
@@ -264,24 +266,30 @@ class BinanceDemoEngine {
                         if (resp.ok) {
                             console.log(`🛡️ Binance Testnet Stop Loss Placed via AlgoOrder (quantity) (${symbol} ${side} @ $${formattedSl}):`, resData);
                             return resData;
+                        } else {
+                            console.warn(`[Binance Stop Loss AlgoOrder Qty ${resData.code}]: ${resData.msg}`);
                         }
                     } catch (e) {}
                 }
             }
 
-            // Step 3: Fallback to standard order endpoint
-            const legacyTimestamp = Date.now();
-            const legacyParams = `symbol=${symbol}&side=${side}&type=STOP_MARKET&stopPrice=${formattedSl}&closePosition=true&workingType=MARK_PRICE&recvWindow=10000&timestamp=${legacyTimestamp}`;
-            const legacySig = CryptoJS.HmacSHA256(legacyParams, this.testnetApiSecret).toString(CryptoJS.enc.Hex);
+            // Step 3: Fallback with STOP limit order via AlgoOrder
+            if (quantity && quantity > 0) {
+                const stopTimestamp = Date.now();
+                const stopParams = `symbol=${symbol}&side=${side}&algoType=CONDITIONAL&type=STOP&stopPrice=${formattedSl}&price=${formattedSl}&quantity=${quantity}&reduceOnly=true&workingType=MARK_PRICE&recvWindow=10000&timestamp=${stopTimestamp}`;
+                const stopSig = CryptoJS.HmacSHA256(stopParams, this.testnetApiSecret).toString(CryptoJS.enc.Hex);
 
-            const legacyResp = await fetch(`/_testnet/fapi/v1/order?${legacyParams}&signature=${legacySig}`, {
-                method: 'POST',
-                headers: { 'X-MBX-APIKEY': this.testnetApiKey }
-            });
-            const legacyData = await legacyResp.json();
-            if (legacyResp.ok) {
-                console.log(`🛡️ Binance Testnet Stop Loss Placed via standard order:`, legacyData);
-                return legacyData;
+                try {
+                    const resp = await fetch(`/_testnet/fapi/v1/algoOrder?${stopParams}&signature=${stopSig}`, {
+                        method: 'POST',
+                        headers: { 'X-MBX-APIKEY': this.testnetApiKey }
+                    });
+                    const resData = await resp.json();
+                    if (resp.ok) {
+                        console.log(`🛡️ Binance Testnet Stop Loss (STOP Limit) Placed:`, resData);
+                        return resData;
+                    }
+                } catch (e) {}
             }
 
         } catch (err) {
@@ -291,7 +299,7 @@ class BinanceDemoEngine {
     }
 
     /**
-     * Binance Testnet: Place Take Profit Order (via /fapi/v1/algoOrder & fallback)
+     * Binance Testnet: Place Take Profit Order (via /fapi/v1/algoOrder & fallbacks)
      */
     async sendTestnetTakeProfitOrder(symbol, side, tpPrice, quantity = null) {
         if (!this.testnetApiKey || !this.testnetApiSecret || typeof CryptoJS === 'undefined') return null;
@@ -299,10 +307,10 @@ class BinanceDemoEngine {
         try {
             const formattedTp = this.formatPricePrecision(symbol, tpPrice);
 
-            // Step 1: Binance USDS-M Futures Algo Order API (/fapi/v1/algoOrder)
+            // Step 1: Binance USDS-M Futures Algo Order API (/fapi/v1/algoOrder) with closePosition=true
             const algoTimestamp = Date.now();
-            let algoParams = `symbol=${symbol}&side=${side}&type=TAKE_PROFIT_MARKET&stopPrice=${formattedTp}&closePosition=true&workingType=MARK_PRICE&recvWindow=10000&timestamp=${algoTimestamp}`;
-            let algoSig = CryptoJS.HmacSHA256(algoParams, this.testnetApiSecret).toString(CryptoJS.enc.Hex);
+            const algoParams = `symbol=${symbol}&side=${side}&algoType=CONDITIONAL&type=TAKE_PROFIT_MARKET&stopPrice=${formattedTp}&closePosition=true&workingType=MARK_PRICE&recvWindow=10000&timestamp=${algoTimestamp}`;
+            const algoSig = CryptoJS.HmacSHA256(algoParams, this.testnetApiSecret).toString(CryptoJS.enc.Hex);
 
             const algoEndpoints = [
                 `/_testnet/fapi/v1/algoOrder?${algoParams}&signature=${algoSig}`,
@@ -319,6 +327,8 @@ class BinanceDemoEngine {
                     if (resp.ok) {
                         console.log(`🎯 Binance Testnet Take Profit Placed via AlgoOrder (${symbol} ${side} @ $${formattedTp}):`, resData);
                         return resData;
+                    } else {
+                        console.warn(`[Binance Take Profit AlgoOrder ${resData.code}]: ${resData.msg}`);
                     }
                 } catch (e) {}
             }
@@ -326,7 +336,7 @@ class BinanceDemoEngine {
             // Step 2: Retry with quantity & reduceOnly via AlgoOrder
             if (quantity && quantity > 0) {
                 const qtyTimestamp = Date.now();
-                const qtyParams = `symbol=${symbol}&side=${side}&type=TAKE_PROFIT_MARKET&stopPrice=${formattedTp}&quantity=${quantity}&reduceOnly=true&workingType=MARK_PRICE&recvWindow=10000&timestamp=${qtyTimestamp}`;
+                const qtyParams = `symbol=${symbol}&side=${side}&algoType=CONDITIONAL&type=TAKE_PROFIT_MARKET&stopPrice=${formattedTp}&quantity=${quantity}&reduceOnly=true&workingType=MARK_PRICE&recvWindow=10000&timestamp=${qtyTimestamp}`;
                 const qtySig = CryptoJS.HmacSHA256(qtyParams, this.testnetApiSecret).toString(CryptoJS.enc.Hex);
 
                 const qtyEndpoints = [
@@ -344,24 +354,30 @@ class BinanceDemoEngine {
                         if (resp.ok) {
                             console.log(`🎯 Binance Testnet Take Profit Placed via AlgoOrder (quantity) (${symbol} ${side} @ $${formattedTp}):`, resData);
                             return resData;
+                        } else {
+                            console.warn(`[Binance Take Profit AlgoOrder Qty ${resData.code}]: ${resData.msg}`);
                         }
                     } catch (e) {}
                 }
             }
 
-            // Step 3: Fallback to standard order endpoint
-            const legacyTimestamp = Date.now();
-            const legacyParams = `symbol=${symbol}&side=${side}&type=TAKE_PROFIT_MARKET&stopPrice=${formattedTp}&closePosition=true&workingType=MARK_PRICE&recvWindow=10000&timestamp=${legacyTimestamp}`;
-            const legacySig = CryptoJS.HmacSHA256(legacyParams, this.testnetApiSecret).toString(CryptoJS.enc.Hex);
+            // Step 3: Fallback with TAKE_PROFIT limit order via AlgoOrder
+            if (quantity && quantity > 0) {
+                const tpTimestamp = Date.now();
+                const tpParams = `symbol=${symbol}&side=${side}&algoType=CONDITIONAL&type=TAKE_PROFIT&stopPrice=${formattedTp}&price=${formattedTp}&quantity=${quantity}&reduceOnly=true&workingType=MARK_PRICE&recvWindow=10000&timestamp=${tpTimestamp}`;
+                const tpSig = CryptoJS.HmacSHA256(tpParams, this.testnetApiSecret).toString(CryptoJS.enc.Hex);
 
-            const legacyResp = await fetch(`/_testnet/fapi/v1/order?${legacyParams}&signature=${legacySig}`, {
-                method: 'POST',
-                headers: { 'X-MBX-APIKEY': this.testnetApiKey }
-            });
-            const legacyData = await legacyResp.json();
-            if (legacyResp.ok) {
-                console.log(`🎯 Binance Testnet Take Profit Placed via standard order:`, legacyData);
-                return legacyData;
+                try {
+                    const resp = await fetch(`/_testnet/fapi/v1/algoOrder?${tpParams}&signature=${tpSig}`, {
+                        method: 'POST',
+                        headers: { 'X-MBX-APIKEY': this.testnetApiKey }
+                    });
+                    const resData = await resp.json();
+                    if (resp.ok) {
+                        console.log(`🎯 Binance Testnet Take Profit (TAKE_PROFIT Limit) Placed:`, resData);
+                        return resData;
+                    }
+                } catch (e) {}
             }
 
         } catch (err) {
