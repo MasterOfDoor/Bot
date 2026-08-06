@@ -9,10 +9,17 @@ class BinanceDemoEngine {
         this.balance = parseFloat(localStorage.getItem('demo_balance')) || this.initialBalance;
         this.leverage = parseInt(localStorage.getItem('demo_leverage')) || 10;
         this.marginType = localStorage.getItem('demo_margin_type') || 'ISOLATED';
-        this.positionSizePct = parseFloat(localStorage.getItem('demo_position_size_pct')) || 25;
+        this.positionSizePct = parseFloat(localStorage.getItem('demo_position_size_pct')) || 10;
+        this.maxPositions = 3;
         this.isAutoTraderEnabled = localStorage.getItem('demo_autotrader') === 'true';
 
-        this.currentPosition = JSON.parse(localStorage.getItem('demo_current_position')) || null;
+        this.activePositions = JSON.parse(localStorage.getItem('demo_active_positions')) || [];
+        // Legacy single position fallback
+        if (this.activePositions.length === 0) {
+            const legacyPos = JSON.parse(localStorage.getItem('demo_current_position'));
+            if (legacyPos) this.activePositions.push(legacyPos);
+        }
+
         this.openOrders = [];
         this.closedTrades = JSON.parse(localStorage.getItem('demo_closed_trades')) || [];
 
@@ -22,6 +29,20 @@ class BinanceDemoEngine {
         this.useTestnetApi = localStorage.getItem('demo_use_testnet_api') === 'true';
 
         this.startSyncLoop();
+    }
+
+    get currentPosition() {
+        return this.activePositions.length > 0 ? this.activePositions[0] : null;
+    }
+
+    set currentPosition(val) {
+        if (!val) {
+            this.activePositions = [];
+        } else {
+            const idx = this.activePositions.findIndex(p => p.symbol === val.symbol);
+            if (idx >= 0) this.activePositions[idx] = val;
+            else this.activePositions.push(val);
+        }
     }
 
     startSyncLoop() {
@@ -39,6 +60,7 @@ class BinanceDemoEngine {
         localStorage.setItem('demo_margin_type', this.marginType);
         localStorage.setItem('demo_position_size_pct', this.positionSizePct);
         localStorage.setItem('demo_autotrader', this.isAutoTraderEnabled);
+        localStorage.setItem('demo_active_positions', JSON.stringify(this.activePositions));
         localStorage.setItem('demo_current_position', JSON.stringify(this.currentPosition));
         localStorage.setItem('demo_closed_trades', JSON.stringify(this.closedTrades));
         localStorage.setItem('demo_testnet_api_key', this.testnetApiKey);
@@ -59,7 +81,7 @@ class BinanceDemoEngine {
     }
 
     setPositionSizePercent(pct) {
-        this.positionSizePct = Math.max(5, Math.min(100, pct));
+        this.positionSizePct = Math.max(5, Math.min(50, pct));
         this.saveState();
         return this.positionSizePct;
     }
@@ -72,7 +94,7 @@ class BinanceDemoEngine {
 
     resetWallet() {
         this.balance = this.initialBalance;
-        this.currentPosition = null;
+        this.activePositions = [];
         this.openOrders = [];
         this.closedTrades = [];
         this.saveState();
@@ -429,14 +451,15 @@ class BinanceDemoEngine {
                 }
             }
 
-            // 2. Sync Real Live Position (GET /fapi/v2/positionRisk)
+            // 2. Sync Real Live Positions (GET /fapi/v2/positionRisk)
             const posUrl = `/_testnet/fapi/v2/positionRisk?${params}&signature=${signature}`;
             const posResp = await fetch(posUrl, { headers: { 'X-MBX-APIKEY': this.testnetApiKey } });
             if (posResp.ok) {
                 const positions = await posResp.json();
                 if (Array.isArray(positions)) {
-                    const activePos = positions.find(p => parseFloat(p.positionAmt) !== 0);
-                    if (activePos) {
+                    const activeOnBinance = positions.filter(p => parseFloat(p.positionAmt) !== 0);
+                    
+                    this.activePositions = activeOnBinance.map(activePos => {
                         const posAmt = parseFloat(activePos.positionAmt);
                         const dir = posAmt > 0 ? 'LONG' : 'SHORT';
                         const absQty = Math.abs(posAmt);
@@ -448,7 +471,9 @@ class BinanceDemoEngine {
                         const notional = absQty * markPx;
                         const margin = notional / lev;
 
-                        this.currentPosition = {
+                        const existing = this.activePositions.find(p => p.symbol === activePos.symbol);
+
+                        return {
                             id: 'POS_LIVE_' + activePos.symbol,
                             symbol: activePos.symbol,
                             direction: dir,
@@ -459,17 +484,14 @@ class BinanceDemoEngine {
                             notionalValue: notional,
                             leverage: lev,
                             marginType: mType,
-                            slPrice: this.currentPosition ? this.currentPosition.slPrice : null,
-                            tpPrice: this.currentPosition ? this.currentPosition.tpPrice : null,
+                            slPrice: existing ? existing.slPrice : null,
+                            tpPrice: existing ? existing.tpPrice : null,
                             liqPrice: parseFloat(activePos.liquidationPrice) || this.calculateLiquidationPrice(entryPx, dir, lev),
-                            openedAt: this.currentPosition ? this.currentPosition.openedAt : new Date().toISOString(),
+                            openedAt: existing ? existing.openedAt : new Date().toISOString(),
                             unrealizedPnl: parseFloat(activePos.unRealizedProfit) || 0,
                             unrealizedPnlPct: margin > 0 ? ((parseFloat(activePos.unRealizedProfit) || 0) / margin) * 100 : 0
                         };
-                    } else if (this.useTestnetApi && this.currentPosition && this.currentPosition.id.startsWith('POS_LIVE_')) {
-                        // Position was closed directly on Binance
-                        this.currentPosition = null;
-                    }
+                    });
                 }
             }
 
@@ -481,14 +503,14 @@ class BinanceDemoEngine {
                 if (Array.isArray(orders)) {
                     this.openOrders = orders;
 
-                    // Update SL/TP prices on active position
-                    if (this.currentPosition) {
-                        const symOrders = orders.filter(o => o.symbol === this.currentPosition.symbol);
+                    // Update SL/TP prices on active positions
+                    this.activePositions.forEach(pos => {
+                        const symOrders = orders.filter(o => o.symbol === pos.symbol);
                         const slOrd = symOrders.find(o => o.type === 'STOP_MARKET');
                         const tpOrd = symOrders.find(o => o.type === 'TAKE_PROFIT_MARKET');
-                        if (slOrd) this.currentPosition.slPrice = parseFloat(slOrd.stopPrice);
-                        if (tpOrd) this.currentPosition.tpPrice = parseFloat(tpOrd.stopPrice);
-                    }
+                        if (slOrd) pos.slPrice = parseFloat(slOrd.stopPrice);
+                        if (tpOrd) pos.tpPrice = parseFloat(tpOrd.stopPrice);
+                    });
                 }
             }
 
@@ -502,18 +524,25 @@ class BinanceDemoEngine {
 
     /**
      * Open a new Position (1:1 Synchronized with Binance Futures Testnet)
+     * Max 3 concurrent positions, 10% balance margin allocation per trade.
      */
     async openPosition(symbol, direction, entryPrice, slPrice = null, tpPrice = null) {
         symbol = this.normalizeSymbol(symbol);
-        if (this.currentPosition) {
-            console.warn('DemoEngine: Existing position active. Close it first before opening a new one.');
+
+        if (this.activePositions.length >= this.maxPositions) {
+            console.warn(`DemoEngine: Maximum active position limit reached (${this.maxPositions}). Cannot open ${symbol}.`);
+            return false;
+        }
+
+        if (this.activePositions.some(p => p.symbol === symbol)) {
+            console.warn(`DemoEngine: Active position already exists for ${symbol}.`);
             return false;
         }
 
         const margin = (this.balance * (this.positionSizePct / 100));
         let notionalValue = margin * this.leverage;
 
-        // Clamp maximum test notional to $15,000 USDT to avoid Binance Testnet 'Quantity greater than max quantity' limit
+        // Clamp maximum test notional to $15,000 USDT
         const maxTestNotional = 15000;
         if (notionalValue > maxTestNotional) {
             notionalValue = maxTestNotional;
@@ -524,13 +553,13 @@ class BinanceDemoEngine {
         // Precision and Max Quantity Clamping per Symbol
         if (symbol.includes('BTC')) {
             quantity = parseFloat(quantity.toFixed(3));
-            quantity = Math.min(quantity, 0.2); // Safe BTC testnet order cap
+            quantity = Math.min(quantity, 0.2);
         } else if (symbol.includes('ETH')) {
             quantity = parseFloat(quantity.toFixed(2));
-            quantity = Math.min(quantity, 2.0); // Safe ETH testnet order cap
+            quantity = Math.min(quantity, 2.0);
         } else if (symbol.includes('XAU')) {
             quantity = parseFloat(quantity.toFixed(2));
-            quantity = Math.min(quantity, 2.0); // Safe XAU testnet order cap
+            quantity = Math.min(quantity, 2.0);
         } else {
             quantity = parseFloat(quantity.toFixed(1));
             quantity = Math.min(quantity, 100.0);
@@ -541,7 +570,7 @@ class BinanceDemoEngine {
         const side = direction === 'LONG' ? 'BUY' : 'SELL';
         const reverseSide = direction === 'LONG' ? 'SELL' : 'BUY';
 
-        // Auto-calculate SL & TP if omitted
+        // Auto-calculate SL & TP if omitted (1.5x ATR SL / 3.0x ATR TP approximation)
         if (!slPrice) {
             slPrice = direction === 'LONG' ? entryPrice * 0.985 : entryPrice * 1.015;
         }
@@ -576,8 +605,8 @@ class BinanceDemoEngine {
 
         const liqPrice = this.calculateLiquidationPrice(entryPrice, direction, this.leverage);
 
-        this.currentPosition = {
-            id: 'POS_' + Date.now(),
+        const newPosition = {
+            id: 'POS_' + Date.now() + '_' + symbol,
             symbol: symbol,
             direction: direction, // 'LONG' or 'SHORT'
             entryPrice: entryPrice,
@@ -594,70 +623,85 @@ class BinanceDemoEngine {
             unrealizedPnlPct: 0
         };
 
+        this.activePositions.push(newPosition);
+
         this.saveState();
-        console.log(`DemoEngine: Opened ${this.leverage}x ${this.marginType} ${direction} on ${symbol} @ $${entryPrice.toFixed(2)} [SL: $${slPrice ? slPrice.toFixed(2) : '-'} | TP: $${tpPrice ? tpPrice.toFixed(2) : '-'}]`);
-        return this.currentPosition;
+        console.log(`DemoEngine: Opened ${this.leverage}x ${this.marginType} ${direction} on ${symbol} @ $${entryPrice.toFixed(2)} [SL: $${slPrice ? slPrice.toFixed(2) : '-'} | TP: $${tpPrice ? tpPrice.toFixed(2) : '-'}] (Active: ${this.activePositions.length}/${this.maxPositions})`);
+        return newPosition;
     }
 
     /**
-     * Evaluate live market price tick against open position for SL/TP/Liquidation
+     * Evaluate live market price tick against all active positions for SL/TP/Liquidation
      */
-    onPriceTick(currentPrice) {
-        if (!this.currentPosition) return null;
+    onPriceTick(currentPrice, targetSymbol = null) {
+        if (this.activePositions.length === 0) return null;
 
-        const pos = this.currentPosition;
-        let pnl = 0;
+        const closedThisTick = [];
 
-        if (pos.direction === 'LONG') {
-            pnl = (currentPrice - pos.entryPrice) * pos.quantity;
+        for (let i = this.activePositions.length - 1; i >= 0; i--) {
+            const pos = this.activePositions[i];
+            if (targetSymbol && targetSymbol !== pos.symbol) continue;
+
+            let pnl = 0;
+            if (pos.direction === 'LONG') {
+                pnl = (currentPrice - pos.entryPrice) * pos.quantity;
+            } else {
+                pnl = (pos.entryPrice - currentPrice) * pos.quantity;
+            }
+
+            pos.unrealizedPnl = pnl;
+            pos.unrealizedPnlPct = (pnl / pos.margin) * 100;
+
+            // In Paper Simulation mode, evaluate SL/TP/Liquidation
+            if (!this.useTestnetApi) {
+                // Check Liquidation
+                if ((pos.direction === 'LONG' && currentPrice <= pos.liqPrice) || (pos.direction === 'SHORT' && currentPrice >= pos.liqPrice)) {
+                    closedThisTick.push(this.closeCurrentPosition(pos.symbol, pos.liqPrice, 'LİKİDASYON (SL)'));
+                    continue;
+                }
+
+                // Check Take Profit (TP)
+                if (pos.tpPrice) {
+                    if ((pos.direction === 'LONG' && currentPrice >= pos.tpPrice) || (pos.direction === 'SHORT' && currentPrice <= pos.tpPrice)) {
+                        closedThisTick.push(this.closeCurrentPosition(pos.symbol, pos.tpPrice, 'TAKE PROFİT (TP)'));
+                        continue;
+                    }
+                }
+
+                // Check Stop Loss (SL)
+                if (pos.slPrice) {
+                    if ((pos.direction === 'LONG' && currentPrice <= pos.slPrice) || (pos.direction === 'SHORT' && currentPrice >= pos.slPrice)) {
+                        closedThisTick.push(this.closeCurrentPosition(pos.symbol, pos.slPrice, 'STOP LOSS (SL)'));
+                        continue;
+                    }
+                }
+            }
+        }
+
+        return this.activePositions;
+    }
+
+    /**
+     * Close specific position by symbol and 1:1 cancel open SL/TP orders on Binance Futures Testnet
+     */
+    async closeCurrentPosition(symbolOrExitPrice, exitPrice = null, reason = 'MANUEL') {
+        if (this.activePositions.length === 0) return null;
+
+        let targetSymbol = null;
+        let actualExitPrice = exitPrice;
+
+        if (typeof symbolOrExitPrice === 'string') {
+            targetSymbol = this.normalizeSymbol(symbolOrExitPrice);
         } else {
-            pnl = (pos.entryPrice - currentPrice) * pos.quantity;
+            actualExitPrice = symbolOrExitPrice;
+            targetSymbol = this.activePositions[0].symbol;
         }
 
-        pos.unrealizedPnl = pnl;
-        pos.unrealizedPnlPct = (pnl / pos.margin) * 100;
+        const posIdx = this.activePositions.findIndex(p => p.symbol === targetSymbol);
+        if (posIdx < 0) return null;
 
-        // In Paper Simulation mode, evaluate SL/TP/Liquidation
-        if (!this.useTestnetApi) {
-            // Check Liquidation
-            if (pos.direction === 'LONG' && currentPrice <= pos.liqPrice) {
-                return this.closeCurrentPosition(pos.liqPrice, 'LİKİDASYON (SL)');
-            }
-            if (pos.direction === 'SHORT' && currentPrice >= pos.liqPrice) {
-                return this.closeCurrentPosition(pos.liqPrice, 'LİKİDASYON (SL)');
-            }
-
-            // Check Take Profit (TP)
-            if (pos.tpPrice) {
-                if (pos.direction === 'LONG' && currentPrice >= pos.tpPrice) {
-                    return this.closeCurrentPosition(pos.tpPrice, 'TAKE PROFİT (TP)');
-                }
-                if (pos.direction === 'SHORT' && currentPrice <= pos.tpPrice) {
-                    return this.closeCurrentPosition(pos.tpPrice, 'TAKE PROFİT (TP)');
-                }
-            }
-
-            // Check Stop Loss (SL)
-            if (pos.slPrice) {
-                if (pos.direction === 'LONG' && currentPrice <= pos.slPrice) {
-                    return this.closeCurrentPosition(pos.slPrice, 'STOP LOSS (SL)');
-                }
-                if (pos.direction === 'SHORT' && currentPrice >= pos.slPrice) {
-                    return this.closeCurrentPosition(pos.slPrice, 'STOP LOSS (SL)');
-                }
-            }
-        }
-
-        return pos;
-    }
-
-    /**
-     * Close position and 1:1 cancel open SL/TP orders on Binance Futures Testnet
-     */
-    async closeCurrentPosition(exitPrice, reason = 'MANUEL') {
-        if (!this.currentPosition) return null;
-
-        const pos = this.currentPosition;
+        const pos = this.activePositions[posIdx];
+        if (!actualExitPrice) actualExitPrice = pos.entryPrice;
 
         // Synchronize closing order on Binance Testnet
         if (this.useTestnetApi && this.testnetApiKey && this.testnetApiSecret) {
@@ -670,11 +714,10 @@ class BinanceDemoEngine {
         }
 
         let realizedPnl = 0;
-
         if (pos.direction === 'LONG') {
-            realizedPnl = (exitPrice - pos.entryPrice) * pos.quantity;
+            realizedPnl = (actualExitPrice - pos.entryPrice) * pos.quantity;
         } else {
-            realizedPnl = (pos.entryPrice - exitPrice) * pos.quantity;
+            realizedPnl = (pos.entryPrice - actualExitPrice) * pos.quantity;
         }
 
         const realizedPnlPct = (realizedPnl / pos.margin) * 100;
@@ -687,23 +730,21 @@ class BinanceDemoEngine {
             symbol: pos.symbol,
             direction: pos.direction,
             entryPrice: pos.entryPrice,
-            exitPrice: exitPrice,
-            leverage: pos.leverage,
+            exitPrice: actualExitPrice,
+            quantity: pos.quantity,
             margin: pos.margin,
-            realizedPnl: realizedPnl,
-            realizedPnlPct: realizedPnlPct,
+            leverage: pos.leverage,
+            pnl: realizedPnl,
+            pnlPct: realizedPnlPct,
             reason: reason,
-            openedAt: pos.openedAt,
             closedAt: new Date().toISOString()
         };
 
         this.closedTrades.unshift(closedTrade);
         if (this.closedTrades.length > 50) this.closedTrades.pop();
+        this.activePositions.splice(posIdx, 1);
 
-        this.currentPosition = null;
-        this.openOrders = [];
         this.saveState();
-
         if (this.useTestnetApi) {
             setTimeout(() => this.syncTestnetAll(), 800);
         }

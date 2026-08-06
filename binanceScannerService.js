@@ -140,17 +140,23 @@ class BinanceScannerService {
             this.symbolsData = updatedData;
             this.notify();
 
-            // Multi-Asset Auto-Trader execution trigger
-            if (this.multiAutoTradeEnabled && window.binanceDemoEngine && !window.binanceDemoEngine.currentPosition) {
-                const signalCoins = this.symbolsData.filter(s => s.signal === 'BUY_LONG' || s.signal === 'SELL_SHORT');
-                if (signalCoins.length > 0) {
-                    // Select dynamically from active signal coins across the market
-                    const signalCoin = signalCoins[Math.floor(Math.random() * signalCoins.length)];
-                    const dir = signalCoin.signal === 'BUY_LONG' ? 'LONG' : 'SHORT';
-                    const slPrice = dir === 'LONG' ? signalCoin.price * 0.985 : signalCoin.price * 1.015;
-                    const tpPrice = dir === 'LONG' ? signalCoin.price * 1.030 : signalCoin.price * 0.970;
-                    console.log(`🤖 Multi-Coin Auto-Trader triggered on ${signalCoin.symbol} (${dir}) @ $${signalCoin.price} [SL: $${slPrice.toFixed(4)} | TP: $${tpPrice.toFixed(4)}]`);
-                    window.binanceDemoEngine.openPosition(signalCoin.symbol, dir, signalCoin.price, slPrice, tpPrice);
+            // Multi-Asset Auto-Trader execution trigger (Max 3 concurrent active positions)
+            if (this.multiAutoTradeEnabled && window.binanceDemoEngine) {
+                const engine = window.binanceDemoEngine;
+                if (engine.activePositions.length < engine.maxPositions) {
+                    const openSymbols = new Set(engine.activePositions.map(p => p.symbol));
+                    const availableSignalCoins = this.symbolsData.filter(s => 
+                        (s.signal === 'BUY_LONG' || s.signal === 'SELL_SHORT') && !openSymbols.has(s.symbol)
+                    );
+
+                    if (availableSignalCoins.length > 0) {
+                        const signalCoin = availableSignalCoins[Math.floor(Math.random() * availableSignalCoins.length)];
+                        const dir = signalCoin.signal === 'BUY_LONG' ? 'LONG' : 'SHORT';
+                        const slPrice = dir === 'LONG' ? signalCoin.price * 0.985 : signalCoin.price * 1.015;
+                        const tpPrice = dir === 'LONG' ? signalCoin.price * 1.030 : signalCoin.price * 0.970;
+                        console.log(`🤖 Multi-Coin Auto-Trader triggered on ${signalCoin.symbol} (${dir}) @ $${signalCoin.price} [SL: $${slPrice.toFixed(4)} | TP: $${tpPrice.toFixed(4)}] (${engine.activePositions.length + 1}/${engine.maxPositions})`);
+                        engine.openPosition(signalCoin.symbol, dir, signalCoin.price, slPrice, tpPrice);
+                    }
                 }
             }
 
