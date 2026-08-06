@@ -1354,7 +1354,11 @@ class App {
                 sizeBtns.forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 this.demoEngine.setPositionSizePercent(parseFloat(btn.dataset.pct));
-                 // Auto Trader Toggle
+                this.updateDemoUI();
+            });
+        });
+
+        // Auto Trader Toggle
         if (this.autoTradeToggle) {
             this.autoTradeToggle.checked = this.demoEngine.isAutoTraderEnabled;
             if (this.autoTradeStatusText) {
