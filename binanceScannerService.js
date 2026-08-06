@@ -113,14 +113,21 @@ class BinanceScannerService {
                 if (chg > 8) rsi = Math.min(92, rsi + 10);
                 if (chg < -8) rsi = Math.max(8, rsi - 10);
 
-                // Determine EMA trend approximation
+                // Determine Day Trading Indicator Approximations & Conditions
                 const isEmaBullish = chg >= 0 || pricePosInScale >= 50;
+                
+                // Estimate ADX trend strength based on 24h volatility & price change magnitude
+                const adxVal = Math.min(60, Math.max(10, Math.round(Math.abs(chg) * 3.5 + (pricePosInScale > 70 || pricePosInScale < 30 ? 15 : 5))));
+                const isTrendStrong = adxVal >= 20;
 
-                // Trend momentum and RSI signal evaluation
+                // Volume confirmation (Liquid pair threshold > $1,000,000 USDT)
+                const isVolumeConfirmed = vol > 1000000;
+
+                // Day Trading Signal Evaluation per DAY_TRADING_STRATEGY.md
                 let signal = 'NEUTRAL'; // 'BUY_LONG', 'SELL_SHORT', 'NEUTRAL'
-                if (chg >= 1.0 || (chg > 0.3 && pricePosInScale > 50)) {
+                if (isEmaBullish && rsi < 42 && isTrendStrong && isVolumeConfirmed) {
                     signal = 'BUY_LONG';
-                } else if (chg <= -1.0 || (chg < -0.3 && pricePosInScale < 50)) {
+                } else if (!isEmaBullish && rsi > 58 && isTrendStrong && isVolumeConfirmed) {
                     signal = 'SELL_SHORT';
                 }
 
@@ -132,6 +139,7 @@ class BinanceScannerService {
                     high24h: high,
                     low24h: low,
                     rsi: rsi,
+                    adx: adxVal,
                     isEmaBullish: isEmaBullish,
                     signal: signal
                 };

@@ -1531,68 +1531,49 @@ class App {
             this.demoTotalReturnText.className = `demo-stat-sub ${relPnl >= 0 ? 'text-success' : 'text-danger'}`;
         }
 
-        const pos = this.demoEngine.currentPosition;
-
-        // Calculate and update Live Bot Calculated SL/TP values
-        const lastCandle = this.displayData && this.displayData.candles.length > 0 ? this.displayData.candles[this.displayData.candles.length - 1] : null;
-        const livePx = currentPrice || (lastCandle ? lastCandle.close : 0);
-        const atr = this.displayData && this.displayData.atr.length > 0 ? (this.displayData.atr[this.displayData.atr.length - 1] || (livePx * 0.015)) : (livePx * 0.015);
-
-        if (livePx > 0) {
-            const longSl = livePx - (atr * 2.0);
-            const longTp = livePx + (atr * 4.0);
-            const shortSl = livePx + (atr * 2.0);
-            const shortTp = livePx - (atr * 4.0);
-
-            const botLongSlText = document.getElementById('botLongSlText');
-            const botLongTpText = document.getElementById('botLongTpText');
-            const botShortSlText = document.getElementById('botShortSlText');
-            const botShortTpText = document.getElementById('botShortTpText');
-
-            if (botLongSlText) botLongSlText.innerText = `$${longSl.toFixed(2)}`;
-            if (botLongTpText) botLongTpText.innerText = `$${longTp.toFixed(2)}`;
-            if (botShortSlText) botShortSlText.innerText = `$${shortSl.toFixed(2)}`;
-            if (botShortTpText) botShortTpText.innerText = `$${shortTp.toFixed(2)}`;
-        }
+        const activePositions = this.demoEngine.activePositions || [];
 
         if (this.tabPosBadge) {
-            if (pos) {
-                this.tabPosBadge.innerText = `1 Açık Pozisyon (${pos.direction})`;
+            if (activePositions.length > 0) {
+                this.tabPosBadge.innerText = `${activePositions.length}/${this.demoEngine.maxPositions} Açık Pozisyon`;
                 this.tabPosBadge.style.display = 'inline-block';
             } else {
                 this.tabPosBadge.style.display = 'none';
             }
         }
 
-        if (!pos) {
+        if (activePositions.length === 0) {
             if (this.noPositionView) this.noPositionView.style.display = 'flex';
             if (this.hasPositionView) this.hasPositionView.style.display = 'none';
         } else {
             if (this.noPositionView) this.noPositionView.style.display = 'none';
-            if (this.hasPositionView) this.hasPositionView.style.display = 'block';
+            if (this.hasPositionView) {
+                this.hasPositionView.style.display = 'block';
 
-            if (this.posBadge) {
-                this.posBadge.innerText = `${pos.direction} ${pos.leverage}x`;
-                this.posBadge.className = `status-pill ${pos.direction === 'LONG' ? 'buy' : 'sell'}`;
+                const firstPos = activePositions[0];
+                if (this.posBadge) {
+                    this.posBadge.innerText = `${firstPos.direction} ${firstPos.leverage}x (${activePositions.length}/${this.demoEngine.maxPositions})`;
+                    this.posBadge.className = `status-pill ${firstPos.direction === 'LONG' ? 'buy' : 'sell'}`;
+                }
+
+                if (this.posSymbol) this.posSymbol.innerText = firstPos.symbol;
+                if (this.posEntryPrice) this.posEntryPrice.innerText = `$${firstPos.entryPrice.toFixed(2)}`;
+                
+                const livePx = currentPrice || firstPos.entryPrice;
+                if (this.posMarkPrice) this.posMarkPrice.innerText = `$${livePx.toFixed(2)}`;
+
+                if (this.posMargin) this.posMargin.innerText = `$${firstPos.margin.toFixed(2)} USDT`;
+                if (this.posNotional) this.posNotional.innerText = `$${firstPos.notionalValue.toFixed(2)} USDT`;
+
+                if (this.posPnlText) {
+                    this.posPnlText.innerText = `${firstPos.unrealizedPnl >= 0 ? '+' : ''}$${firstPos.unrealizedPnl.toFixed(2)} (${firstPos.unrealizedPnlPct >= 0 ? '+' : ''}${firstPos.unrealizedPnlPct.toFixed(2)}%)`;
+                    this.posPnlText.className = `pos-val ${firstPos.unrealizedPnl >= 0 ? 'text-success' : 'text-danger'}`;
+                }
+
+                if (this.posSlText) this.posSlText.innerText = firstPos.slPrice ? `$${firstPos.slPrice.toFixed(2)}` : '-';
+                if (this.posTpText) this.posTpText.innerText = firstPos.tpPrice ? `$${firstPos.tpPrice.toFixed(2)}` : '-';
+                if (this.posLiqText) this.posLiqText.innerText = `$${firstPos.liqPrice.toFixed(2)}`;
             }
-
-            if (this.posSymbol) this.posSymbol.innerText = pos.symbol;
-            if (this.posEntryPrice) this.posEntryPrice.innerText = `$${pos.entryPrice.toFixed(2)}`;
-            
-            const livePx = currentPrice || pos.entryPrice;
-            if (this.posMarkPrice) this.posMarkPrice.innerText = `$${livePx.toFixed(2)}`;
-
-            if (this.posMargin) this.posMargin.innerText = `$${pos.margin.toFixed(2)} USDT`;
-            if (this.posNotional) this.posNotional.innerText = `$${pos.notionalValue.toFixed(2)} USDT`;
-
-            if (this.posPnlText) {
-                this.posPnlText.innerText = `${pos.unrealizedPnl >= 0 ? '+' : ''}$${pos.unrealizedPnl.toFixed(2)} (${pos.unrealizedPnlPct >= 0 ? '+' : ''}${pos.unrealizedPnlPct.toFixed(2)}%)`;
-                this.posPnlText.className = `pos-val ${pos.unrealizedPnl >= 0 ? 'text-success' : 'text-danger'}`;
-            }
-
-            if (this.posSlText) this.posSlText.innerText = pos.slPrice ? `$${pos.slPrice.toFixed(2)}` : '-';
-            if (this.posTpText) this.posTpText.innerText = pos.tpPrice ? `$${pos.tpPrice.toFixed(2)}` : '-';
-            if (this.posLiqText) this.posLiqText.innerText = `$${pos.liqPrice.toFixed(2)}`;
 
             // Render Live Binance Open SL/TP Orders
             const openOrdersBadge = document.getElementById('openOrdersBadge');
@@ -1615,7 +1596,7 @@ class App {
                         html += `
                             <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(0,0,0,0.25); padding:8px 12px; border-radius:6px;">
                                 <div style="display:flex; align-items:center; gap:8px;">
-                                    <span class="${badgeClass}" style="font-size:0.7rem;">${o.side}</span>
+                                    <span class="${badgeClass}" style="font-size:0.7rem;">${o.symbol} ${o.side}</span>
                                     <span style="font-weight:600; font-size:0.85rem;">${typeLabel}</span>
                                 </div>
                                 <div style="font-weight:700; color:${isSl ? 'var(--accent-rose)' : 'var(--accent-emerald)'}; font-size:0.9rem;">
