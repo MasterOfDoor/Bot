@@ -367,6 +367,7 @@ class StrategyEngine {
 
         let currentStatus = {
             state: 'NEUTRAL',
+            type: 'NEUTRAL',
             title: 'Sinyal Bekleniyor',
             description: 'Long & Short trend ve RSI koşulları izleniyor.',
             badgeClass: 'badge-neutral'
@@ -376,6 +377,7 @@ class StrategyEngine {
             const isLong = activePosition.type === 'LONG';
             currentStatus = {
                 state: `IN_POSITION_${activePosition.type}`,
+                type: isLong ? 'BUY' : 'SELL',
                 title: `AÇIK POSİZYON (${activePosition.type})`,
                 description: `Giriş: $${activePosition.entryPrice.toFixed(2)} | TP: $${activePosition.tpPrice.toFixed(2)} | Stop: $${activePosition.slPrice.toFixed(2)}`,
                 badgeClass: isLong ? 'badge-success' : 'badge-warning'
@@ -383,6 +385,7 @@ class StrategyEngine {
         } else if (lastE50 > lastE200 && lastRsi < p.rsiBuy) {
             currentStatus = {
                 state: 'STRONG_BUY_LONG',
+                type: 'BUY',
                 title: 'GÜÇLÜ LONG SİNYALİ!',
                 description: `EMA${p.emaShort} > EMA${p.emaLong} & RSI < ${p.rsiBuy} Dip seviyesinde!`,
                 badgeClass: 'badge-buy'
@@ -390,6 +393,7 @@ class StrategyEngine {
         } else if (lastE50 < lastE200 && lastRsi > p.rsiSell) {
             currentStatus = {
                 state: 'STRONG_SELL_SHORT',
+                type: 'SELL',
                 title: 'GÜÇLÜ SHORT SİNYALİ!',
                 description: `EMA${p.emaShort} < EMA${p.emaLong} & RSI > ${p.rsiSell} Zirve seviyesinde!`,
                 badgeClass: 'badge-warning'
@@ -397,6 +401,7 @@ class StrategyEngine {
         } else if (lastE50 > lastE200) {
             currentStatus = {
                 state: 'LONG_TREND_ACTIVE',
+                type: 'BUY',
                 title: 'LONG TREND AKTİF',
                 description: `EMA ${p.emaShort} ($${lastE50 ? lastE50.toFixed(2) : '-'}) > EMA ${p.emaLong} ($${lastE200 ? lastE200.toFixed(2) : '-'}). RSI (${lastRsi ? lastRsi.toFixed(1) : '-'}) ${p.rsiBuy} altına düşmesi bekleniyor.`,
                 badgeClass: 'badge-info'
@@ -404,6 +409,7 @@ class StrategyEngine {
         } else if (lastE50 < lastE200) {
             currentStatus = {
                 state: 'SHORT_TREND_ACTIVE',
+                type: 'SELL',
                 title: 'SHORT TREND AKTİF',
                 description: `EMA ${p.emaShort} ($${lastE50 ? lastE50.toFixed(2) : '-'}) < EMA ${p.emaLong} ($${lastE200 ? lastE200.toFixed(2) : '-'}). RSI (${lastRsi ? lastRsi.toFixed(1) : '-'}) ${p.rsiSell} üstüne çıkması bekleniyor.`,
                 badgeClass: 'badge-warning'
@@ -707,6 +713,7 @@ class App {
                                 last.close = livePrice;
                                 if (livePrice > last.high) last.high = livePrice;
                                 if (livePrice < last.low) last.low = livePrice;
+                                await this.checkAutoTraderSignals(last);
                             }
                             this.updateDemoUI(livePrice);
                             return;
@@ -1347,18 +1354,22 @@ class App {
                 sizeBtns.forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 this.demoEngine.setPositionSizePercent(parseFloat(btn.dataset.pct));
-                this.updateDemoUI();
-            });
-        });
-
-        // Auto Trader Toggle
+                 // Auto Trader Toggle
         if (this.autoTradeToggle) {
             this.autoTradeToggle.checked = this.demoEngine.isAutoTraderEnabled;
-            this.autoTradeToggle.addEventListener('change', (e) => {
+            if (this.autoTradeStatusText) {
+                this.autoTradeStatusText.innerText = this.demoEngine.isAutoTraderEnabled ? 'AÇIK (Otomatik Emirler Aktif)' : 'KAPALI (Sinyaller Beklemede)';
+                this.autoTradeStatusText.style.color = this.demoEngine.isAutoTraderEnabled ? 'var(--accent-emerald)' : 'var(--text-muted)';
+            }
+            this.autoTradeToggle.addEventListener('change', async (e) => {
                 const state = this.demoEngine.setAutoTrader(e.target.checked);
                 if (this.autoTradeStatusText) {
                     this.autoTradeStatusText.innerText = state ? 'AÇIK (Otomatik Emirler Aktif)' : 'KAPALI (Sinyaller Beklemede)';
                     this.autoTradeStatusText.style.color = state ? 'var(--accent-emerald)' : 'var(--text-muted)';
+                }
+                if (state && this.displayData && this.displayData.candles && this.displayData.candles.length > 0) {
+                    const last = this.displayData.candles[this.displayData.candles.length - 1];
+                    await this.checkAutoTraderSignals(last);
                 }
             });
         }
@@ -1378,32 +1389,38 @@ class App {
 
         // Manual Test Positions (with 1.5x ATR SL and 3.0x ATR TP)
         if (this.openTestLongBtn) {
-            this.openTestLongBtn.addEventListener('click', () => {
-                if (this.displayData && this.displayData.candles.length > 0) {
-                    const last = this.displayData.candles[this.displayData.candles.length - 1];
-                    const atr = this.displayData.atr[this.displayData.atr.length - 1] || (last.close * 0.015);
-                    
-                    let sl = this.customSlInput && this.customSlInput.value ? parseFloat(this.customSlInput.value) : (last.close - (atr * 1.5));
-                    let tp = this.customTpInput && this.customTpInput.value ? parseFloat(this.customTpInput.value) : (last.close + (atr * 3.0));
+            this.openTestLongBtn.addEventListener('click', async () => {
+                const symbol = this.displayData ? this.displayData.symbol : 'BTCUSDT';
+                const last = (this.displayData && this.displayData.candles && this.displayData.candles.length > 0)
+                    ? this.displayData.candles[this.displayData.candles.length - 1]
+                    : { close: 65000 };
+                const atr = (this.displayData && this.displayData.atr && this.displayData.atr.length > 0)
+                    ? (this.displayData.atr[this.displayData.atr.length - 1] || (last.close * 0.015))
+                    : (last.close * 0.015);
+                
+                let sl = this.customSlInput && this.customSlInput.value ? parseFloat(this.customSlInput.value) : (last.close - (atr * 1.5));
+                let tp = this.customTpInput && this.customTpInput.value ? parseFloat(this.customTpInput.value) : (last.close + (atr * 3.0));
 
-                    this.demoEngine.openPosition(this.displayData.symbol, 'LONG', last.close, sl, tp);
-                    this.updateDemoUI();
-                }
+                await this.demoEngine.openPosition(symbol, 'LONG', last.close, sl, tp);
+                this.updateDemoUI();
             });
         }
 
         if (this.openTestShortBtn) {
-            this.openTestShortBtn.addEventListener('click', () => {
-                if (this.displayData && this.displayData.candles.length > 0) {
-                    const last = this.displayData.candles[this.displayData.candles.length - 1];
-                    const atr = this.displayData.atr[this.displayData.atr.length - 1] || (last.close * 0.015);
-                    
-                    let sl = this.customSlInput && this.customSlInput.value ? parseFloat(this.customSlInput.value) : (last.close + (atr * 1.5));
-                    let tp = this.customTpInput && this.customTpInput.value ? parseFloat(this.customTpInput.value) : (last.close - (atr * 3.0));
+            this.openTestShortBtn.addEventListener('click', async () => {
+                const symbol = this.displayData ? this.displayData.symbol : 'BTCUSDT';
+                const last = (this.displayData && this.displayData.candles && this.displayData.candles.length > 0)
+                    ? this.displayData.candles[this.displayData.candles.length - 1]
+                    : { close: 65000 };
+                const atr = (this.displayData && this.displayData.atr && this.displayData.atr.length > 0)
+                    ? (this.displayData.atr[this.displayData.atr.length - 1] || (last.close * 0.015))
+                    : (last.close * 0.015);
+                
+                let sl = this.customSlInput && this.customSlInput.value ? parseFloat(this.customSlInput.value) : (last.close + (atr * 1.5));
+                let tp = this.customTpInput && this.customTpInput.value ? parseFloat(this.customTpInput.value) : (last.close - (atr * 3.0));
 
-                    this.demoEngine.openPosition(this.displayData.symbol, 'SHORT', last.close, sl, tp);
-                    this.updateDemoUI();
-                }
+                await this.demoEngine.openPosition(symbol, 'SHORT', last.close, sl, tp);
+                this.updateDemoUI();
             });
         }
 
@@ -1467,7 +1484,7 @@ class App {
         this.updateDemoUI();
     }
 
-    checkAutoTraderSignals(lastCandle) {
+    async checkAutoTraderSignals(lastCandle) {
         if (!this.demoEngine || !this.demoEngine.isAutoTraderEnabled || !this.displayData) return;
         
         // Check if multi-position capacity is full
@@ -1477,23 +1494,30 @@ class App {
         if (this.demoEngine.activePositions.some(p => p.symbol === this.displayData.symbol)) return;
 
         const status = this.displayData.currentStatus;
-        if (!status || status.type === 'NEUTRAL') return;
+        if (!status || status.type === 'NEUTRAL' || status.state === 'NEUTRAL') return;
 
-        const atr = this.displayData.atr[this.displayData.atr.length - 1] || (lastCandle.close * 0.015);
+        const atr = (this.displayData.atr && this.displayData.atr.length > 0) 
+            ? (this.displayData.atr[this.displayData.atr.length - 1] || (lastCandle.close * 0.015)) 
+            : (lastCandle.close * 0.015);
         let sl = null;
         let tp = null;
+        let dir = null;
 
-        if (status.type === 'BUY') {
+        if (status.type === 'BUY' || status.state.includes('BUY') || status.state.includes('LONG')) {
+            dir = 'LONG';
             sl = lastCandle.close - (atr * 1.5);
             tp = lastCandle.close + (atr * 3.0);
-            this.demoEngine.openPosition(this.displayData.symbol, 'LONG', lastCandle.close, sl, tp);
-        } else if (status.type === 'SELL') {
+        } else if (status.type === 'SELL' || status.state.includes('SELL') || status.state.includes('SHORT')) {
+            dir = 'SHORT';
             sl = lastCandle.close + (atr * 1.5);
             tp = lastCandle.close - (atr * 3.0);
-            this.demoEngine.openPosition(this.displayData.symbol, 'SHORT', lastCandle.close, sl, tp);
         }
 
-        this.updateDemoUI();
+        if (dir) {
+            console.log(`🤖 Auto-Trader opening ${dir} on ${this.displayData.symbol} @ $${lastCandle.close} [SL: $${sl.toFixed(2)} | TP: $${tp.toFixed(2)}]`);
+            await this.demoEngine.openPosition(this.displayData.symbol, dir, lastCandle.close, sl, tp);
+            this.updateDemoUI();
+        }
     }
 
     updateDemoUI(currentPrice = null) {

@@ -550,22 +550,22 @@ class BinanceDemoEngine {
 
         let quantity = (notionalValue / entryPrice);
 
-        // Precision and Max Quantity Clamping per Symbol
+        // Precision and Quantity Clamping per Symbol / Price level
         if (symbol.includes('BTC')) {
             quantity = parseFloat(quantity.toFixed(3));
-            quantity = Math.min(quantity, 0.2);
-        } else if (symbol.includes('ETH')) {
+            if (this.useTestnetApi) quantity = Math.min(quantity, 0.2);
+        } else if (symbol.includes('ETH') || symbol.includes('XAU')) {
             quantity = parseFloat(quantity.toFixed(2));
-            quantity = Math.min(quantity, 2.0);
-        } else if (symbol.includes('XAU')) {
-            quantity = parseFloat(quantity.toFixed(2));
-            quantity = Math.min(quantity, 2.0);
-        } else {
+            if (this.useTestnetApi) quantity = Math.min(quantity, 2.0);
+        } else if (entryPrice < 0.1) {
+            quantity = Math.max(1, Math.round(quantity));
+        } else if (entryPrice < 10) {
             quantity = parseFloat(quantity.toFixed(1));
-            quantity = Math.min(quantity, 100.0);
+        } else {
+            quantity = parseFloat(quantity.toFixed(2));
         }
 
-        if (quantity <= 0) quantity = 0.001;
+        if (quantity <= 0) quantity = 0.01;
 
         const side = direction === 'LONG' ? 'BUY' : 'SELL';
         const reverseSide = direction === 'LONG' ? 'SELL' : 'BUY';
@@ -580,27 +580,33 @@ class BinanceDemoEngine {
 
         // If Testnet API Keys active, sync 1:1 with Binance Futures Testnet
         if (this.useTestnetApi && this.testnetApiKey && this.testnetApiSecret) {
-            // Step 1: Set Leverage on Binance
-            await this.setBinanceLeverage(symbol, this.leverage);
+            try {
+                // Step 1: Set Leverage on Binance
+                await this.setBinanceLeverage(symbol, this.leverage);
 
-            // Step 2: Set Margin Type (ISOLATED/CROSSED) on Binance
-            await this.setBinanceMarginType(symbol, this.marginType);
+                // Step 2: Set Margin Type (ISOLATED/CROSSED) on Binance
+                await this.setBinanceMarginType(symbol, this.marginType);
 
-            // Step 3: Send Main Market Order to Binance
-            const testnetRes = await this.sendTestnetOrder(symbol, side, quantity);
-            if (!testnetRes) return false;
+                // Step 3: Send Main Market Order to Binance
+                const testnetRes = await this.sendTestnetOrder(symbol, side, quantity);
+                if (testnetRes) {
+                    // Wait 600ms for Binance position execution to register on testnet
+                    await new Promise(resolve => setTimeout(resolve, 600));
 
-            // Wait 600ms for Binance position execution to register on testnet
-            await new Promise(resolve => setTimeout(resolve, 600));
+                    // Step 4: Send Stop Loss Order (STOP_MARKET)
+                    await this.sendTestnetStopLossOrder(symbol, reverseSide, slPrice, quantity);
 
-            // Step 4: Send Stop Loss Order (STOP_MARKET)
-            await this.sendTestnetStopLossOrder(symbol, reverseSide, slPrice, quantity);
+                    // Step 5: Send Take Profit Order (TAKE_PROFIT_MARKET)
+                    await this.sendTestnetTakeProfitOrder(symbol, reverseSide, tpPrice, quantity);
 
-            // Step 5: Send Take Profit Order (TAKE_PROFIT_MARKET)
-            await this.sendTestnetTakeProfitOrder(symbol, reverseSide, tpPrice, quantity);
-
-            // Perform immediate live sync
-            setTimeout(() => this.syncTestnetAll(), 800);
+                    // Perform immediate live sync
+                    setTimeout(() => this.syncTestnetAll(), 800);
+                } else {
+                    console.warn(`Testnet order not acknowledged by Binance API, keeping simulated demo position.`);
+                }
+            } catch (err) {
+                console.warn('Binance Testnet API execution warning:', err);
+            }
         }
 
         const liqPrice = this.calculateLiquidationPrice(entryPrice, direction, this.leverage);

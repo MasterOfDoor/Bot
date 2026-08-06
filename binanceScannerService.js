@@ -148,6 +148,20 @@ class BinanceScannerService {
             this.symbolsData = updatedData;
             this.notify();
 
+            // Live Price Tick updates for all active multi-positions
+            if (window.binanceDemoEngine && window.binanceDemoEngine.activePositions.length > 0) {
+                const engine = window.binanceDemoEngine;
+                engine.activePositions.forEach(pos => {
+                    const found = this.symbolsData.find(s => s.symbol === pos.symbol);
+                    if (found && found.price) {
+                        engine.onPriceTick(found.price, pos.symbol);
+                    }
+                });
+                if (window.app && typeof window.app.updateDemoUI === 'function') {
+                    window.app.updateDemoUI();
+                }
+            }
+
             // Multi-Asset Auto-Trader execution trigger (Max 3 concurrent active positions)
             if (this.multiAutoTradeEnabled && window.binanceDemoEngine) {
                 const engine = window.binanceDemoEngine;
@@ -163,7 +177,11 @@ class BinanceScannerService {
                         const slPrice = dir === 'LONG' ? signalCoin.price * 0.985 : signalCoin.price * 1.015;
                         const tpPrice = dir === 'LONG' ? signalCoin.price * 1.030 : signalCoin.price * 0.970;
                         console.log(`🤖 Multi-Coin Auto-Trader triggered on ${signalCoin.symbol} (${dir}) @ $${signalCoin.price} [SL: $${slPrice.toFixed(4)} | TP: $${tpPrice.toFixed(4)}] (${engine.activePositions.length + 1}/${engine.maxPositions})`);
-                        engine.openPosition(signalCoin.symbol, dir, signalCoin.price, slPrice, tpPrice);
+                        engine.openPosition(signalCoin.symbol, dir, signalCoin.price, slPrice, tpPrice).then(() => {
+                            if (window.app && typeof window.app.updateDemoUI === 'function') {
+                                window.app.updateDemoUI();
+                            }
+                        });
                     }
                 }
             }
