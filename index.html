@@ -3,213 +3,287 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Binance Futures Algo Trading Bot & Live Signal Desk</title>
+    <title>Binance Futures Pro Algo Terminal | Institutional Day Trading Desk</title>
     
-    <!-- Google Fonts -->
+    <!-- Google Fonts: Inter (UI), Outfit (Brand/Headings), JetBrains Mono (Financial Numbers) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800;900&display=swap" rel="stylesheet">
     
     <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="pro-terminal-body">
 
-    <div class="app-container">
-        
-        <!-- Navigation Bar -->
-        <header class="navbar">
-            <div class="brand">
-                <div class="logo-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline>
-                        <polyline points="16 7 22 7 22 13"></polyline>
+    <!-- Top Executive Live Ticker & Status Strip -->
+    <header class="executive-top-bar">
+        <div class="top-bar-inner">
+            <div class="brand-group">
+                <div class="brand-logo-badge">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 3v18h18"></path>
+                        <path d="m19 9-5 5-4-4-3 3"></path>
                     </svg>
                 </div>
-                <div>
-                    <h1 class="brand-title">Binance Pro Algo Trader</h1>
-                    <p class="brand-subtitle">Dinamik İndikatör & Volatilite Yönetimli Canlı Borsa Botu</p>
+                <div class="brand-meta">
+                    <div class="brand-title-row">
+                        <h1 class="brand-name">BINANCE PRO ALGO</h1>
+                        <span class="version-tag">v2.5 PRO DESK</span>
+                    </div>
+                    <span class="brand-subtitle">Quad-Feed High-Frequency Day Trading & Risk Terminal</span>
                 </div>
             </div>
 
-            <!-- Global Symbol Search & Timeframe Controls -->
-            <div class="header-controls">
-                <div class="search-box">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <!-- Real-Time Metrics Strip -->
+            <div class="top-metrics-strip">
+                <div class="top-stat-item">
+                    <span class="top-stat-label">BAĞLANTI DURUMU</span>
+                    <div class="top-stat-val connection-live">
+                        <span class="pulse-dot green"></span>
+                        <span id="topWsStatus">Binance Live (12ms)</span>
+                    </div>
+                </div>
+
+                <div class="top-stat-item">
+                    <span class="top-stat-label">CÜZDAN BAKİYESİ</span>
+                    <div id="topHeaderBalance" class="top-stat-val mono font-bold">$10,000.00 USDT</div>
+                </div>
+
+                <div class="top-stat-item">
+                    <span class="top-stat-label">GERÇEKLEŞMİŞ PNL (24S)</span>
+                    <div id="topHeaderPnl" class="top-stat-val mono text-success font-bold">+$0.00 (+0.00%)</div>
+                </div>
+
+                <div class="top-stat-item">
+                    <span class="top-stat-label">AKTİF POZİSYONLAR</span>
+                    <div class="top-stat-val mono">
+                        <span id="topHeaderPositions" class="badge-pos-count">0 / 3 DOLU</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Executive Actions -->
+            <div class="top-actions-group">
+                <button id="openTestnetModalBtn" class="btn btn-glass-sm" title="Binance Futures Testnet API Ayarları">
+                    <span class="btn-icon">🔑</span> API Keys
+                </button>
+                <button id="optimizeBtn" class="btn btn-warning-glow-sm" title="Parametreleri Canlı Veride Optimize Et">
+                    <span class="btn-icon">⚡</span> Optimizasyon
+                </button>
+                <button id="refreshBtn" class="btn btn-icon-round" title="Piyasaları ve Verileri Yenile">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                        <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="app-main-container">
+
+        <!-- Quick Symbol Selection & Search Ribbon -->
+        <section class="ticker-ribbon-bar glass-panel">
+            <div class="ribbon-search-group">
+                <div class="search-input-wrapper">
+                    <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="11" cy="11" r="8"></circle>
                         <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                     </svg>
-                    <input type="text" id="symbolInput" placeholder="Sembol Ara (Örn: BTCUSDT)..." value="BTCUSDT">
-                    <button id="searchBtn" class="btn btn-primary-sm">Getir</button>
+                    <input type="text" id="symbolInput" class="symbol-search-field mono" placeholder="Sembol Ara (Örn: BTCUSDT)..." value="BTCUSDT">
+                    <button id="searchBtn" class="btn btn-primary-xs">Getir</button>
                 </div>
 
-                <div class="control-group">
-                    <select id="intervalSelect" class="form-select">
-                        <option value="15m">15 Dakika</option>
-                        <option value="1h" selected>1 Saat</option>
-                        <option value="4h">4 Saat</option>
-                        <option value="1d">1 Gün</option>
+                <div class="timeframe-selector">
+                    <select id="intervalSelect" class="form-select-pro mono">
+                        <option value="5m">5 Dakika (Scalp)</option>
+                        <option value="15m">15 Dakika (Day Trade)</option>
+                        <option value="1h" selected>1 Saat (Swing)</option>
+                        <option value="4h">4 Saat (Trend)</option>
+                        <option value="1d">1 Gün (Major)</option>
                     </select>
-
-                    <button id="optimizeBtn" class="btn btn-warning-sm" title="Strateji parametrelerini otomatik hesapla">
-                        ⚡ Strateji Optimizasyon
-                    </button>
-
-                    <button id="refreshBtn" class="btn btn-icon" title="Verileri Yenile">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="23 4 23 10 17 10"></polyline>
-                            <polyline points="1 20 1 14 7 14"></polyline>
-                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
-                        </svg>
-                    </button>
                 </div>
             </div>
-        </header>
 
-        <!-- Quick Symbol Selection Chips -->
-        <div class="symbol-chips">
-            <span class="chips-label">Popüler Vadeli Sözleşmeler:</span>
-            <button class="chip" data-symbol="BTCUSDT">₿ BTC/USDT</button>
-            <button class="chip" data-symbol="ETHUSDT">Ξ ETH/USDT</button>
-            <button class="chip" data-symbol="SOLUSDT">☀️ SOL/USDT</button>
-            <button class="chip" data-symbol="XAUUSDT">🥇 XAU/USDT (ALTIN VADELİ)</button>
-            <button class="chip" data-symbol="AVAXUSDT">🔺 AVAX/USDT</button>
-            <button class="chip" data-symbol="1000PEPEUSDT">🐸 1000PEPE/USDT</button>
-            <button class="chip" data-symbol="NEARUSDT">Ⓝ NEAR/USDT</button>
-            <button class="chip" data-symbol="SUIUSDT">💧 SUI/USDT</button>
-            <button class="chip" data-symbol="XRPUSDT">⚡ XRP/USDT</button>
-            <button class="chip" data-symbol="DOGEUSDT">🐕 DOGE/USDT</button>
-            <button class="chip" data-symbol="BNBUSDT">🔶 BNB/USDT</button>
-        </div>
+            <div class="quick-asset-chips">
+                <button class="asset-chip active" data-symbol="BTCUSDT"><span class="chip-coin-icon">₿</span> BTC/USDT</button>
+                <button class="asset-chip" data-symbol="ETHUSDT"><span class="chip-coin-icon">Ξ</span> ETH/USDT</button>
+                <button class="asset-chip" data-symbol="SOLUSDT"><span class="chip-coin-icon">☀️</span> SOL/USDT</button>
+                <button class="asset-chip chip-gold" data-symbol="XAUUSDT"><span class="chip-coin-icon">🥇</span> XAU/USDT (Altın)</button>
+                <button class="asset-chip" data-symbol="AVAXUSDT"><span class="chip-coin-icon">🔺</span> AVAX/USDT</button>
+                <button class="asset-chip" data-symbol="1000PEPEUSDT"><span class="chip-coin-icon">🐸</span> PEPE/USDT</button>
+                <button class="asset-chip" data-symbol="NEARUSDT"><span class="chip-coin-icon">Ⓝ</span> NEAR/USDT</button>
+                <button class="asset-chip" data-symbol="SUIUSDT"><span class="chip-coin-icon">💧</span> SUI/USDT</button>
+                <button class="asset-chip" data-symbol="XRPUSDT"><span class="chip-coin-icon">⚡</span> XRP/USDT</button>
+                <button class="asset-chip" data-symbol="DOGEUSDT"><span class="chip-coin-icon">🐕</span> DOGE/USDT</button>
+                <button class="asset-chip" data-symbol="BNBUSDT"><span class="chip-coin-icon">🔶</span> BNB/USDT</button>
+            </div>
+        </section>
 
-        <!-- Workspace Main Navigation Tabs -->
-        <div class="workspace-tabs-container">
-            <button id="tabSignalBtn" class="workspace-tab active">
-                <span class="tab-icon">📊</span> Sinyal & Strateji Takip Masası
+        <!-- Main Workspace Navigation Tabs -->
+        <nav class="pro-tab-navigation">
+            <button id="tabSignalBtn" class="pro-tab-item active">
+                <span class="pro-tab-icon">📈</span>
+                <span class="pro-tab-title">Sinyal & Strateji Takip Masası</span>
+                <span id="tabSignalBadge" class="pro-tab-badge">Canlı</span>
             </button>
-            <button id="tabDemoBtn" class="workspace-tab">
-                <span class="tab-icon">⚡</span> Binance Futures Canlı İşlem Terminali
-                <span id="tabPosBadge" class="tab-badge" style="display:none;">1 Açık Pozisyon</span>
+            <button id="tabDemoBtn" class="pro-tab-item">
+                <span class="pro-tab-icon">⚡</span>
+                <span class="pro-tab-title">Binance Futures Canlı İşlem Terminali</span>
+                <span id="tabPosBadge" class="pro-tab-badge-accent" style="display:none;">0/3 Pozisyon</span>
             </button>
-            <button id="tabScannerBtn" class="workspace-tab">
-                <span class="tab-icon">🌐</span> Tüm Piyasalar Radarı (100+ Koin)
+            <button id="tabScannerBtn" class="pro-tab-item">
+                <span class="pro-tab-icon">🌐</span>
+                <span class="pro-tab-title">100+ Koin Canlı Piyasa Radarı</span>
+                <span class="pro-tab-badge-radar">Canlı Tarama</span>
             </button>
-        </div>
+        </nav>
 
-        <!-- TAB 1: Sinyal & Strateji Takip Masası -->
-        <div id="tabSignalContent" class="tab-content active">
-            <!-- Symbol Header & Current Status Grid -->
-            <div class="dashboard-grid">
+        <!-- TAB 1: SİNYAL & STRATEJİ TAKİP MASASI -->
+        <div id="tabSignalContent" class="tab-pane active">
+            
+            <!-- Asset Overview & Metric Cards Grid -->
+            <div class="metrics-overview-grid">
                 
-                <!-- Asset Main Summary Card -->
-                <div class="glass-card header-summary-card">
-                    <div class="asset-meta">
+                <!-- Main Asset Summary Box -->
+                <div class="glass-panel card-asset-hero">
+                    <div class="asset-hero-top">
                         <div>
-                            <div class="asset-title-row">
-                                <h2 id="displaySymbol">BTCUSDT</h2>
+                            <div class="hero-symbol-row">
+                                <h2 id="displaySymbol" class="hero-symbol-name mono">BTCUSDT</h2>
+                                <span class="badge-market-type">PERPETUAL</span>
                             </div>
-                            <p id="providerText" class="text-muted">Binance Futures (1h Live)</p>
+                            <p id="providerText" class="hero-provider-info">Binance Futures Quad-Feed (Live Tick)</p>
                         </div>
-                        <div class="asset-price-box">
-                            <div id="displayPrice" class="asset-price">$0.00</div>
-                            <div id="displayChange" class="asset-change">+0.00%</div>
+                        <div class="hero-price-stack">
+                            <div id="displayPrice" class="hero-price-val mono">$0.00</div>
+                            <div id="displayChange" class="hero-change-pill mono positive">+0.00%</div>
                         </div>
                     </div>
 
-                    <div class="signal-status-box">
-                        <span class="signal-label">MEVCUT SİNYAL DURUMU</span>
-                        <div class="signal-value-row">
-                            <span id="signalBadge" class="status-pill neutral">NÖTR / BEKLEMEDE</span>
-                            <span id="signalHeadline" class="signal-text">Strateji Uygun Seviye Bekliyor</span>
+                    <div class="hero-signal-status-box">
+                        <div class="signal-headline-row">
+                            <span class="signal-tag-lbl">DAY TRADING SİNYALİ</span>
+                            <span id="signalBadge" class="signal-pill-badge neutral">BEKLEMEDE</span>
                         </div>
-                        <p id="signalDescription" class="signal-desc">EMA 50, EMA 200 ve RSI 14 değerleri canlı piyasa verisinde taranmaktadır.</p>
+                        <div id="signalHeadline" class="signal-status-title">Strateji Uygun Seviye Bekliyor</div>
+                        <p id="signalDescription" class="signal-status-desc">EMA 9/21, RSI 38/62, ADX > 20 ve Hacim > 1.15x MA20 koşulları canlı veride değerlendiriliyor.</p>
                     </div>
                 </div>
 
-                <!-- Strategy Metrics Cards -->
-                <div class="glass-card metric-card">
-                    <div class="metric-header">
-                        <span class="metric-title">Hesaplanan Net Kâr / Zarar</span>
-                        <div class="metric-icon green">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
-                                <polyline points="17 6 23 6 23 12"></polyline>
-                            </svg>
-                        </div>
+                <!-- Strategy Backtest Stat Card 1 -->
+                <div class="glass-panel stat-metric-box">
+                    <div class="stat-metric-header">
+                        <span class="stat-metric-title">Kümülatif Net Getiri</span>
+                        <span class="stat-icon-badge emerald">📈</span>
                     </div>
-                    <div id="metricReturn" class="metric-value positive">+0.0%</div>
-                    <div class="metric-footer">
-                        <span>Backtest Simülasyonu</span>
-                        <span id="metricBars">0 Mum</span>
+                    <div id="metricReturn" class="stat-metric-value mono positive">+0.0%</div>
+                    <div class="stat-metric-footer">
+                        <span>Day-Trading Backtest</span>
+                        <span id="metricBars" class="mono text-muted">0 Mum</span>
                     </div>
                 </div>
 
-                <div class="glass-card metric-card">
-                    <div class="metric-header">
-                        <span class="metric-title">Kazanma Oranı (Win Rate)</span>
-                        <div class="metric-icon yellow">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <circle cx="12" cy="12" r="10"></circle>
-                                <polyline points="12 6 12 12 16 14"></polyline>
-                            </svg>
-                        </div>
+                <!-- Strategy Backtest Stat Card 2 -->
+                <div class="glass-panel stat-metric-box">
+                    <div class="stat-metric-header">
+                        <span class="stat-metric-title">Kazanma Oranı (Win Rate)</span>
+                        <span class="stat-icon-badge amber">🎯</span>
                     </div>
-                    <div id="metricWinRate" class="metric-value">0.0%</div>
-                    <div class="metric-footer">
+                    <div id="metricWinRate" class="stat-metric-value mono">0.0%</div>
+                    <div class="stat-metric-footer">
                         <span>Başarılı Pozisyonlar</span>
-                        <span id="metricWinCount">0 / 0</span>
+                        <span id="metricWinCount" class="mono text-muted">0 / 0</span>
                     </div>
                 </div>
 
-                <div class="glass-card metric-card">
-                    <div class="metric-header">
-                        <span class="metric-title">Toplam İşlem Sayısı</span>
-                        <div class="metric-icon blue">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-                                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
-                            </svg>
-                        </div>
+                <!-- Strategy Backtest Stat Card 3 -->
+                <div class="glass-panel stat-metric-box">
+                    <div class="stat-metric-header">
+                        <span class="stat-metric-title">Toplam İşlem Sayısı</span>
+                        <span class="stat-icon-badge indigo">📊</span>
                     </div>
-                    <div id="metricTradeCount" class="metric-value">0</div>
-                    <div class="metric-footer">
-                        <span>Tamamlanan Pozisyonlar</span>
+                    <div id="metricTradeCount" class="stat-metric-value mono">0</div>
+                    <div class="stat-metric-footer">
+                        <span>Kapalı Simülasyon</span>
+                        <span class="mono text-muted">Max 3 Pozisyon</span>
                     </div>
                 </div>
+
             </div>
 
-            <!-- Candlestick Trading Chart Container -->
-            <div class="glass-card chart-card">
-                <div class="chart-header">
-                    <div class="chart-title">
-                        <h3>📉 Canlı Vadeli İşlemler Mum Grafiği & İndikatör Sinyalleri</h3>
-                        <div class="chart-legend">
-                            <span class="legend-item"><span class="legend-dot yellow"></span> <span id="legendEmaShort">Hızlı EMA 50</span></span>
-                            <span class="legend-item"><span class="legend-dot cyan"></span> <span id="legendEmaLong">Yavaş EMA 200</span></span>
+            <!-- Candlestick Trading Chart & Indicators Canvas Deck -->
+            <div class="glass-panel pro-chart-deck">
+                <div class="chart-deck-header">
+                    <div class="chart-deck-title-group">
+                        <h3 class="chart-deck-title">📉 Canlı Vadeli İşlemler Mum Grafiği & Dinamik İndikatör Şeridi</h3>
+                        <div class="chart-legend-pills">
+                            <span class="legend-pill"><span class="legend-dot gold"></span> <span id="legendEmaShort" class="mono">EMA 9 (Hızlı)</span></span>
+                            <span class="legend-pill"><span class="legend-dot cyan"></span> <span id="legendEmaLong" class="mono">EMA 21 (Yavaş)</span></span>
+                            <span class="legend-pill"><span class="legend-dot purple"></span> <span class="mono">RSI (14) & ADX (14)</span></span>
                         </div>
                     </div>
                 </div>
-                <div class="chart-canvas-container">
+
+                <div class="chart-viewport-container">
                     <canvas id="tradingChart"></canvas>
-                    <div id="chartTooltip" class="chart-tooltip" style="display: none;"></div>
+                    <div id="chartTooltip" class="pro-chart-tooltip" style="display: none;"></div>
                 </div>
 
                 <!-- RSI Sub-Chart -->
-                <div class="rsi-chart-container">
-                    <div class="rsi-header">
-                        <span class="rsi-title">RSI (Relative Strength Index - 14)</span>
+                <div class="rsi-subchart-container">
+                    <div class="rsi-subchart-header">
+                        <span class="rsi-subchart-title mono">RSI (Relative Strength Index - 14)</span>
+                        <div class="rsi-threshold-labels mono">
+                            <span class="lbl-oversold">38 (Alım Seviyesi)</span>
+                            <span class="lbl-overbought">62 (Satım Seviyesi)</span>
+                        </div>
                     </div>
-                    <canvas id="rsiChartCanvas" height="130"></canvas>
+                    <canvas id="rsiChartCanvas" height="120"></canvas>
                 </div>
             </div>
 
-            <!-- Trade History & Signal Signals Logs -->
-            <div class="glass-card trades-card">
-                <div class="trades-header">
-                    <h3>📜 Strateji Sinyal ve İşlem Geçmişi (Backtest Logs)</h3>
-                    <span id="tradesCountBadge" class="badge">0 İşlem Kaydedildi</span>
+            <!-- Day Trading Rules & ATR Risk Mechanics Banner -->
+            <div class="glass-panel trading-rules-panel">
+                <div class="rules-panel-header">
+                    <div class="rules-header-title">
+                        <span class="rules-icon">🛡️</span>
+                        <span>Aktif Day Trading Karar Kuralları & ATR Dinamik Risk Motoru</span>
+                    </div>
+                    <span class="rules-mode-badge">Çift Yönlü (LONG + SHORT)</span>
                 </div>
-                <div class="table-responsive">
-                    <table class="trades-table">
+                <div class="rules-spec-grid">
+                    <div class="rule-spec-card">
+                        <span class="rule-spec-label">LONG GİRİŞ KRİTERLERİ</span>
+                        <p id="ruleLongText" class="rule-spec-value mono">EMA 9 > EMA 21 & RSI < 38 & ADX > 20 & Hacim > %15</p>
+                    </div>
+                    <div class="rule-spec-card">
+                        <span class="rule-spec-label">SHORT GİRİŞ KRİTERLERİ</span>
+                        <p id="ruleShortText" class="rule-spec-value mono">EMA 9 < EMA 21 & RSI > 62 & ADX > 20 & Hacim > %15</p>
+                    </div>
+                    <div class="rule-spec-card">
+                        <span class="rule-spec-label">STOP LOSS (SL)</span>
+                        <p id="ruleSlText" class="rule-spec-value mono text-warning">1.5x ATR (Dinamik Volatilite)</p>
+                    </div>
+                    <div class="rule-spec-card">
+                        <span class="rule-spec-label">TAKE PROFIT (TP)</span>
+                        <p id="ruleTpText" class="rule-spec-value mono text-success">3.0x ATR (1:2 Risk/Ödül Oranı)</p>
+                    </div>
+                    <div class="rule-spec-card">
+                        <span class="rule-spec-label">KASA RİSK KURALI</span>
+                        <p class="rule-spec-value mono text-cyan">Max 3 Pozisyon / İşlem Başı %10 Marjin</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Historical Trade Execution Logs -->
+            <div class="glass-panel trade-logs-panel">
+                <div class="trade-logs-header">
+                    <div class="logs-title-group">
+                        <h3>📜 Strateji Sinyal ve Backtest İşlem Geçmişi</h3>
+                        <span id="tradesCountBadge" class="badge-counter mono">0 İşlem</span>
+                    </div>
+                </div>
+                <div class="table-responsive-wrapper">
+                    <table class="pro-data-table">
                         <thead>
                             <tr>
                                 <th>#</th>
@@ -225,88 +299,60 @@
                         </thead>
                         <tbody id="tradesTableBody">
                             <tr>
-                                <td colspan="9" class="text-center text-muted" style="padding: 32px;">Henüz geçmiş simülasyon işlemi bulunmuyor. Stratejiyi başlatmak için bir sembol aratabilirsiniz.</td>
+                                <td colspan="9" class="text-center text-muted" style="padding: 32px;">Geçmiş işlem verisi bulunamadı. Stratejiyi başlatmak için bir parite aratabilirsiniz.</td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
             </div>
 
-            <!-- Bot Rules Banner -->
-            <div class="glass-card rules-card" style="margin-top:20px;">
-                <div class="rules-header">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <line x1="12" y1="16" x2="12" y2="12"></line>
-                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                    </svg>
-                    <span>Aktif Bot Karar Mekanizması & ATR Risk Yönetimi</span>
-                </div>
-                <div class="rules-grid">
-                    <div class="rule-item">
-                        <span class="rule-title">LONG KOŞULU</span>
-                        <p id="ruleLongText" class="rule-value">EMA50 > EMA200 & RSI < 30</p>
-                    </div>
-                    <div class="rule-item">
-                        <span class="rule-title">SHORT KOŞULU</span>
-                        <p id="ruleShortText" class="rule-value">EMA50 < EMA200 & RSI > 70</p>
-                    </div>
-                    <div class="rule-item">
-                        <span class="rule-title">STOP LOSS (SL)</span>
-                        <p id="ruleSlText" class="rule-value">2.0x ATR (Volatilite)</p>
-                    </div>
-                    <div class="rule-item">
-                        <span class="rule-title">TAKE PROFİT (TP)</span>
-                        <p id="ruleTpText" class="rule-value">4.0x ATR (Volatilite)</p>
-                    </div>
-                    <div class="rule-item">
-                        <span class="rule-title">İŞLEM YÖNLERİ</span>
-                        <p class="rule-value highlight">Çift Yönlü (LONG + SHORT)</p>
-                    </div>
-                </div>
-            </div>
         </div>
 
-        <!-- TAB 2: Binance Futures Canlı İşlem Terminali -->
-        <div id="tabDemoContent" class="tab-content" style="display: none;">
-            <div class="glass-card demo-panel-card">
-                <div class="demo-header">
-                    <div class="demo-title-group">
-                        <div class="demo-icon">⚡</div>
+        <!-- TAB 2: BİNANCE FUTURES CANLI İŞLEM TERMİNALİ & ÇOKLU POZİSYON MASASI -->
+        <div id="tabDemoContent" class="tab-pane" style="display: none;">
+            
+            <div class="glass-panel operational-terminal-card">
+                
+                <!-- Terminal Header -->
+                <div class="terminal-deck-header">
+                    <div class="terminal-title-group">
+                        <div class="terminal-deck-icon">⚡</div>
                         <div>
-                            <h3>Binance Futures Canlı İşlem Terminali</h3>
-                            <p class="text-muted">Canlı borsa verisi ile kaldıraçlı işlem açma masası ve anlık emir yönetimi</p>
+                            <h3 class="terminal-main-title">Binance Futures Canlı İşlem Terminali & Pozisyon Masası</h3>
+                            <p class="terminal-sub-desc">Çoklu pozisyon (max 3), dinamik kaldıraç, borsa onaylı SL/TP emirleri ve otomatik algo-trader motoru</p>
                         </div>
                     </div>
 
-                    <div class="demo-actions">
-                        <button id="openTestnetModalBtn" class="btn btn-outline-sm">🔑 Binance Testnet API</button>
-                        <button id="resetWalletBtn" class="btn btn-danger-sm" title="Demo bakiyeyi $10,000 USDT seviyesine sıfırlar">Sıfırla</button>
+                    <div class="terminal-header-actions">
+                        <button id="resetWalletBtn" class="btn btn-danger-glow-sm" title="Sanal cüzdanı $10,000 USDT seviyesine sıfırlar">
+                            🔄 Cüzdanı Sıfırla
+                        </button>
                     </div>
                 </div>
 
-                <div class="demo-controls-grid">
+                <!-- Top Operational Control Matrix -->
+                <div class="terminal-control-matrix">
                     
-                    <!-- Wallet Balance Box -->
-                    <div class="demo-stat-box">
-                        <span class="demo-stat-label">SANAL CÜZDAN BAKİYESİ</span>
-                        <div id="demoBalanceText" class="demo-stat-value">$10,000.00 USDT</div>
-                        <div id="demoTotalReturnText" class="demo-stat-sub positive">Gerçekleşmiş Kâr: +$0.00 (+0.00%)</div>
+                    <!-- Wallet Balance Card -->
+                    <div class="terminal-balance-card">
+                        <span class="control-box-label">SANAL CÜZDAN MARJİNİ</span>
+                        <div id="demoBalanceText" class="terminal-balance-val mono font-bold">$10,000.00 USDT</div>
+                        <div id="demoTotalReturnText" class="terminal-pnl-sub mono positive">Gerçekleşmiş Kâr: +$0.00 (+0.00%)</div>
                     </div>
 
-                    <!-- Margin Type Selector -->
-                    <div class="demo-control-group">
-                        <span class="control-label">MARJİN TİPİ (MARGIN MODE)</span>
-                        <div class="btn-group-segmented">
+                    <!-- Margin Mode Selector -->
+                    <div class="terminal-control-card">
+                        <span class="control-box-label">MARJİN TİPİ (MARGIN MODE)</span>
+                        <div class="btn-segmented-group">
                             <button class="btn-seg-margin active" data-margin="ISOLATED">İzole (Isolated)</button>
                             <button class="btn-seg-margin" data-margin="CROSSED">Çapraz (Cross)</button>
                         </div>
                     </div>
 
                     <!-- Leverage Selector -->
-                    <div class="demo-control-group">
-                        <span class="control-label">KALDIRAÇ (LEVERAGE)</span>
-                        <div class="btn-group-segmented">
+                    <div class="terminal-control-card">
+                        <span class="control-box-label">KALDIRAÇ (LEVERAGE)</span>
+                        <div class="btn-segmented-group leverage-chips">
                             <button class="btn-seg" data-lev="1">1x</button>
                             <button class="btn-seg" data-lev="2">2x</button>
                             <button class="btn-seg" data-lev="5">5x</button>
@@ -318,214 +364,203 @@
                         </div>
                     </div>
 
-                    <!-- Position Size Selector -->
-                    <div class="demo-control-group">
-                        <span class="control-label">İŞLEM BÜYÜKLÜĞÜ (% MARJİN)</span>
-                        <div class="btn-group-segmented">
-                            <button class="btn-seg-size" data-pct="10">%10</button>
-                            <button class="btn-seg-size active" data-pct="25">%25</button>
+                    <!-- Position Margin Size -->
+                    <div class="terminal-control-card">
+                        <span class="control-box-label">İŞLEM BAŞI MARJİN (% KASA)</span>
+                        <div class="btn-segmented-group">
+                            <button class="btn-seg-size active" data-pct="10">%10 (Önerilen)</button>
+                            <button class="btn-seg-size" data-pct="25">%25</button>
                             <button class="btn-seg-size" data-pct="50">%50</button>
                             <button class="btn-seg-size" data-pct="75">%75</button>
                             <button class="btn-seg-size" data-pct="100">%100</button>
                         </div>
                     </div>
 
-                    <!-- Auto Trader Switch -->
-                    <div class="demo-control-group">
-                        <span class="control-label">OTOMATİK İŞLEM BOTU (AUTO-TRADER)</span>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="autoTradeToggle">
-                            <span class="toggle-slider"></span>
-                        </label>
-                        <span id="autoTradeStatusText" class="auto-trade-status">KAPALI (Sinyaller Beklemede)</span>
+                    <!-- Auto-Trader Switch -->
+                    <div class="terminal-control-card autotrader-card">
+                        <div class="autotrader-label-row">
+                            <span class="control-box-label">OTOMATİK İŞLEM BOTU (AUTO-TRADER)</span>
+                            <label class="pro-toggle-switch">
+                                <input type="checkbox" id="autoTradeToggle">
+                                <span class="pro-toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div id="autoTradeStatusText" class="autotrader-status-text">KAPALI (Sinyaller Beklemede)</div>
                     </div>
 
                 </div>
 
-                <!-- Live Bot SL/TP Calculation Box -->
-                <div class="bot-sltp-calc-box glass-card" style="padding:16px; margin-bottom:16px; background:rgba(30, 41, 59, 0.6); border:1px solid rgba(56, 189, 248, 0.2);">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                        <span style="font-weight:700; font-size:0.88rem; color:var(--accent-amber);">🤖 BOT TARAFINDAN CANLI HESAPLANAN DİNAMİK SL & TP (2.0x / 4.0x ATR)</span>
-                        <span class="text-muted" style="font-size:0.75rem;">Canlı Borsa Fiyatına Göre Güncellenir</span>
+                <!-- Real-Time ATR Dynamic SL/TP Preview Forecast Box -->
+                <div class="atr-forecast-panel">
+                    <div class="forecast-header">
+                        <span class="forecast-title">🤖 BOT TARAFINDAN ANLIK HESAPLANAN DİNAMİK HEDEFLER (1.5x SL / 3.0x TP ATR)</span>
+                        <span class="forecast-subtitle mono">Canlı Borsa Fiyatına Göre Güncellenir</span>
                     </div>
-                    <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:12px;">
-                        <div style="background:rgba(16, 185, 129, 0.08); border:1px solid rgba(16, 185, 129, 0.2); padding:10px 14px; border-radius:var(--radius-sm);">
-                            <div style="font-size:0.78rem; font-weight:700; color:var(--accent-emerald); margin-bottom:4px;">🟢 LONG İÇİN OTOMATİK BOT HEDEFLERİ</div>
-                            <div style="display:flex; justify-content:space-between; font-size:0.83rem;">
-                                <span>Stop Loss (2.0x ATR):</span>
-                                <strong id="botLongSlText" style="color:#f59e0b;">$0.00</strong>
+                    <div class="forecast-cards-grid">
+                        <div class="forecast-card long-forecast">
+                            <div class="forecast-dir-title">🟢 LONG (ALIŞ) OTOMATİK HEDEFLERİ</div>
+                            <div class="forecast-row">
+                                <span>Stop Loss (1.5x ATR):</span>
+                                <strong id="botLongSlText" class="mono text-warning">$0.00</strong>
                             </div>
-                            <div style="display:flex; justify-content:space-between; font-size:0.83rem; margin-top:2px;">
-                                <span>Take Profit (4.0x ATR):</span>
-                                <strong id="botLongTpText" style="color:#10b981;">$0.00</strong>
-                            </div>
-                        </div>
-
-                        <div style="background:rgba(239, 68, 68, 0.08); border:1px solid rgba(239, 68, 68, 0.2); padding:10px 14px; border-radius:var(--radius-sm);">
-                            <div style="font-size:0.78rem; font-weight:700; color:var(--accent-rose); margin-bottom:4px;">🔴 SHORT İÇİN OTOMATİK BOT HEDEFLERİ</div>
-                            <div style="display:flex; justify-content:space-between; font-size:0.83rem;">
-                                <span>Stop Loss (2.0x ATR):</span>
-                                <strong id="botShortSlText" style="color:#f59e0b;">$0.00</strong>
-                            </div>
-                            <div style="display:flex; justify-content:space-between; font-size:0.83rem; margin-top:2px;">
-                                <span>Take Profit (4.0x ATR):</span>
-                                <strong id="botShortTpText" style="color:#10b981;">$0.00</strong>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Active Position Live Monitor -->
-                <div id="activePositionCard" class="active-position-card empty">
-                    <div id="noPositionView" class="no-position-view">
-                        <div class="empty-icon">📊</div>
-                        <div>
-                            <h4 style="margin-bottom:4px;">Şu Anda Açık Pozisyon Bulunmuyor</h4>
-                            <p class="text-muted" style="font-size:0.85rem;">Otomatik İşlem Botunu açarak strateji sinyali geldiğinde otomatik emir açılmasını sağlayabilir veya yukarıdaki hesaplanan değerlerle tek tıkla canlı borsa simülasyonu başlatabilirsiniz.</p>
-                        </div>
-
-                        <div class="manual-test-inputs" style="display:flex; gap:16px; margin-top:16px; margin-bottom:16px; width:100%; max-width:540px;">
-                            <div style="flex:1;">
-                                <label class="control-label" style="font-size:0.75rem; font-weight:700; color:var(--text-muted);">ÖZEL STOP LOSS (SL $):</label>
-                                <input type="number" step="any" id="customSlInput" class="form-select" placeholder="Otomatik Bot SL Kullanılsın" style="width:100%; margin-top:6px; font-size:0.88rem; padding:8px 12px; background:rgba(15,23,42,0.8); border:1px solid rgba(255,255,255,0.15); color:#fff; border-radius:var(--radius-sm);">
-                            </div>
-                            <div style="flex:1;">
-                                <label class="control-label" style="font-size:0.75rem; font-weight:700; color:var(--text-muted);">ÖZEL TAKE PROFİT (TP $):</label>
-                                <input type="number" step="any" id="customTpInput" class="form-select" placeholder="Otomatik Bot TP Kullanılsın" style="width:100%; margin-top:6px; font-size:0.88rem; padding:8px 12px; background:rgba(15,23,42,0.8); border:1px solid rgba(255,255,255,0.15); color:#fff; border-radius:var(--radius-sm);">
+                            <div class="forecast-row">
+                                <span>Take Profit (3.0x ATR):</span>
+                                <strong id="botLongTpText" class="mono text-success">$0.00</strong>
                             </div>
                         </div>
 
-                        <div class="manual-test-btns" style="display:flex; gap:12px;">
-                            <button id="openTestLongBtn" class="btn btn-success-sm" style="padding:10px 20px; font-weight:700; font-size:0.9rem;">🟢 Test LONG Aç (Bot SL/TP)</button>
-                            <button id="openTestShortBtn" class="btn btn-danger-sm" style="padding:10px 20px; font-weight:700; font-size:0.9rem;">🔴 Test SHORT Aç (Bot SL/TP)</button>
-                        </div>
-                    </div>
-
-                    <div id="hasPositionView" class="has-position-view" style="display: none;">
-                        <div class="pos-header">
-                            <div class="pos-title">
-                                <span id="posBadge" class="status-pill buy">LONG 10x</span>
-                                <h3 id="posSymbol">BTCUSDT</h3>
+                        <div class="forecast-card short-forecast">
+                            <div class="forecast-dir-title">🔴 SHORT (SATIŞ) OTOMATİK HEDEFLERİ</div>
+                            <div class="forecast-row">
+                                <span>Stop Loss (1.5x ATR):</span>
+                                <strong id="botShortSlText" class="mono text-warning">$0.00</strong>
                             </div>
-                            <button id="closePositionBtn" class="btn btn-danger-sm">❌ Pozisyonu Kapat</button>
-                        </div>
-
-                        <div class="pos-grid">
-                            <div class="pos-item">
-                                <span class="pos-lbl">Giriş Fiyatı:</span>
-                                <strong id="posEntryPrice" class="pos-val">$0.00</strong>
-                            </div>
-                            <div class="pos-item">
-                                <span class="pos-lbl">Anlık Mark Fiyatı:</span>
-                                <strong id="posMarkPrice" class="pos-val">$0.00</strong>
-                            </div>
-                            <div class="pos-item">
-                                <span class="pos-lbl">Kullanılan Marjin:</span>
-                                <strong id="posMargin" class="pos-val">$0.00 USDT</strong>
-                            </div>
-                            <div class="pos-item">
-                                <span class="pos-lbl">Pozisyon Hacmi:</span>
-                                <strong id="posNotional" class="pos-val">$0.00 USDT</strong>
-                            </div>
-                            <div class="pos-item highlight-pnl">
-                                <span class="pos-lbl">Gerçekleşmemiş PnL:</span>
-                                <strong id="posPnlText" class="pos-val positive">+$0.00 (+0.00%)</strong>
-                            </div>
-                            <div class="pos-item">
-                                <span class="pos-lbl">Stop Loss (SL):</span>
-                                <strong id="posSlText" class="pos-val text-warning">$0.00</strong>
-                            </div>
-                            <div class="pos-item">
-                                <span class="pos-lbl">Take Profit (TP):</span>
-                                <strong id="posTpText" class="pos-val text-success">$0.00</strong>
-                            </div>
-                            <div class="pos-item">
-                                <span class="pos-lbl">Likidasyon Fiyatı:</span>
-                                <strong id="posLiqText" class="pos-val text-danger">$0.00</strong>
-                            </div>
-                        </div>
-
-                        <!-- Binance Open SL/TP Orders Live List -->
-                        <div class="binance-orders-subpanel" style="margin-top:16px; border-top:1px solid rgba(255,255,255,0.08); padding-top:12px;">
-                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                                <span class="pos-lbl" style="font-weight:700;">BİNANCE BORSASI BEKLEYEN EMİRLERİ (OPEN SL/TP ORDERS)</span>
-                                <span id="openOrdersBadge" class="badge">0 Bekleyen Emir</span>
-                            </div>
-                            <div id="openOrdersList" class="open-orders-list">
-                                <div class="text-muted" style="font-size:0.82rem;">Binance üzerinde bekleyen aktif SL/TP emri bulunmuyor.</div>
+                            <div class="forecast-row">
+                                <span>Take Profit (3.0x ATR):</span>
+                                <strong id="botShortTpText" class="mono text-success">$0.00</strong>
                             </div>
                         </div>
                     </div>
                 </div>
+
+                <!-- Multi-Position Live Monitoring Section (Max 3 Positions) -->
+                <div class="multi-position-workspace">
+                    <div class="workspace-section-header">
+                        <div class="section-title-group">
+                            <h4 class="section-title">📊 Aktif Vadeli Pozisyon Masası</h4>
+                            <span id="activePosCountBadge" class="badge-counter mono">0 / 3 Açık Pozisyon</span>
+                        </div>
+                        <span class="section-subtitle">Eşzamanlı maksimum 3 işlem riski dağıtılır. Her pozisyon bağımsız TP/SL ile yönetilir.</span>
+                    </div>
+
+                    <!-- Empty State / Manual Order Desk -->
+                    <div id="noPositionView" class="no-position-desk glass-panel">
+                        <div class="empty-desk-icon">⚡</div>
+                        <div class="empty-desk-meta">
+                            <h4>Şu Anda Açık Vadeli Pozisyon Bulunmuyor</h4>
+                            <p class="text-muted">Otomatik Botu açarak sinyal geldiğinde Binance üzerinde anında pozisyon açılmasını sağlayabilir veya aşağıdaki 1-Tıkla hızlı işlem butonlarıyla piyasaya hemen dahil olabilirsiniz.</p>
+                        </div>
+
+                        <!-- Manual Custom SL/TP Inputs -->
+                        <div class="manual-order-inputs-grid">
+                            <div class="input-field-group">
+                                <label class="control-box-label">ÖZEL STOP LOSS ($ SL):</label>
+                                <input type="number" step="any" id="customSlInput" class="form-input-pro mono" placeholder="Otomatik 1.5x ATR Kullan">
+                            </div>
+                            <div class="input-field-group">
+                                <label class="control-box-label">ÖZEL TAKE PROFIT ($ TP):</label>
+                                <input type="number" step="any" id="customTpInput" class="form-input-pro mono" placeholder="Otomatik 3.0x ATR Kullan">
+                            </div>
+                        </div>
+
+                        <!-- Quick 1-Click Action Buttons -->
+                        <div class="manual-order-buttons-row">
+                            <button id="openTestLongBtn" class="btn btn-buy-pro">
+                                <span class="btn-icon">🟢</span> Test LONG Aç (1.5x SL / 3.0x TP)
+                            </button>
+                            <button id="openTestShortBtn" class="btn btn-sell-pro">
+                                <span class="btn-icon">🔴</span> Test SHORT Aç (1.5x SL / 3.0x TP)
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Dynamic Multi-Position Cards Container (Populated by app.js) -->
+                    <div id="activePositionsGrid" class="active-positions-grid" style="display: none;">
+                        <!-- Dynamically rendered position cards will appear here -->
+                    </div>
+
+                    <!-- Legacy single-view wrapper compatibility -->
+                    <div id="hasPositionView" style="display: none;">
+                        <!-- Kept for legacy selector fallback if needed -->
+                    </div>
+
+                    <!-- Binance Futures Open Conditional Orders Strip -->
+                    <div class="binance-orders-section glass-panel">
+                        <div class="orders-section-header">
+                            <div class="orders-title-group">
+                                <span class="orders-icon">📋</span>
+                                <span class="orders-title">BİNANCE BORSASI BEKLEYEN ŞARTLI EMİRLERİ (OPEN SL / TP ORDERS)</span>
+                            </div>
+                            <span id="openOrdersBadge" class="badge-counter mono">0 Bekleyen Emir</span>
+                        </div>
+                        <div id="openOrdersList" class="open-orders-container">
+                            <div class="text-muted text-center" style="padding:16px; font-size:0.85rem;">Binance borsasında bekleyen aktif SL/TP emri bulunmuyor.</div>
+                        </div>
+                    </div>
+
+                </div>
+
             </div>
+
         </div>
 
-        <!-- TAB 3: Tüm Piyasalar Radarı & Çoklu Otomatik Bot -->
-        <div id="tabScannerContent" class="tab-content" style="display: none;">
-            <div class="glass-card scanner-panel-card" style="padding:20px; display:flex; flex-direction:column; gap:20px;">
+        <!-- TAB 3: 100+ KOİN CANLI SİNYAL RADARI -->
+        <div id="tabScannerContent" class="tab-pane" style="display: none;">
+            <div class="glass-panel scanner-deck-card">
                 
-                <div class="scanner-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
-                    <div style="display:flex; align-items:center; gap:12px;">
-                        <div class="demo-icon">🌐</div>
+                <div class="scanner-deck-header">
+                    <div class="scanner-header-title-group">
+                        <div class="scanner-header-icon">🌐</div>
                         <div>
-                            <h3 style="font-size:1.2rem;">Binance Futures Tüm Piyasalar Canlı Sinyal Radarı</h3>
-                            <p class="text-muted" style="font-size:0.85rem;">Binance Vadeli Piyasalarındaki 100+ USDT-M koin eşzamanlı taranır, RSI ve EMA sinyalleri anlık gösterilir.</p>
+                            <h3 class="scanner-header-title">Binance Futures Canlı Piyasa Sinyal Radarı (100+ Parite)</h3>
+                            <p class="scanner-header-subtitle">Binance USDT-M vadeli piyasaları eşzamanlı taranır. EMA 9/21, RSI 38/62 ve hacim patlamaları canlı filtrelenir.</p>
                         </div>
                     </div>
 
-                    <div class="multi-autotrader-box" style="display:flex; align-items:center; gap:12px; background:rgba(99,102,241,0.15); border:1px solid rgba(99,102,241,0.3); padding:10px 16px; border-radius:var(--radius-md);">
+                    <!-- Multi-Coin Auto-Trader Toggle -->
+                    <div class="multi-autotrader-card">
                         <div>
-                            <div style="font-size:0.82rem; font-weight:700; color:#fff;">TÜM KOİNLER OTOMATİK BOTU (MULTI-AUTO TRADER)</div>
-                            <div style="font-size:0.75rem; color:var(--text-muted);">Herhangi bir koinde sinyal gelince Binance'de otomatik işleme girer</div>
+                            <div class="multi-trader-title">TÜM KOİNLER OTOMATİK BOTU (MULTI-RADAR TRADER)</div>
+                            <div class="multi-trader-desc">Herhangi bir koinde sinyal gelince Binance'de otomatik işleme girer (Max 3 pozisyon)</div>
                         </div>
-                        <label class="toggle-switch">
+                        <label class="pro-toggle-switch">
                             <input type="checkbox" id="multiAutoTradeToggle">
-                            <span class="toggle-slider"></span>
+                            <span class="pro-toggle-slider"></span>
                         </label>
                     </div>
                 </div>
 
-                <!-- Scanner Controls & Filters -->
-                <div class="scanner-controls" style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; background:rgba(15,23,42,0.6); padding:12px 16px; border-radius:var(--radius-md); border:1px solid rgba(255,255,255,0.06);">
-                    <div style="flex:1; min-width:200px;">
-                        <input type="text" id="scannerSearchInput" class="form-select" placeholder="🔍 Koin Ara (Örn: SOL, PEPE, AVAX...)" style="width:100%; font-size:0.88rem; padding:8px 12px; background:rgba(15,23,42,0.8); color:#fff; border:1px solid rgba(255,255,255,0.15); border-radius:var(--radius-sm);">
+                <!-- Scanner Filters & Search Toolbar -->
+                <div class="scanner-toolbar">
+                    <div class="scanner-search-box">
+                        <input type="text" id="scannerSearchInput" class="form-input-pro mono" placeholder="🔍 Koin Ara (Örn: SOL, PEPE, AVAX, NEAR...)">
                     </div>
 
-                    <div class="filter-btn-group" style="display:flex; gap:6px;">
+                    <div class="scanner-filter-chips">
                         <button class="btn-scanner-filter active" data-filter="ALL">Tüm Piyasalar</button>
                         <button class="btn-scanner-filter" data-filter="SIGNALS_ONLY">🟢🔴 Sinyal Verenler</button>
                         <button class="btn-scanner-filter" data-filter="LONG">🟢 Long Sinyali</button>
                         <button class="btn-scanner-filter" data-filter="SHORT">🔴 Short Sinyali</button>
                     </div>
 
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        <span class="control-label" style="font-size:0.75rem;">Sıralama:</span>
-                        <select id="scannerSortSelect" class="form-select" style="font-size:0.85rem; padding:6px 12px; background:rgba(15,23,42,0.8); color:#fff; border:1px solid rgba(255,255,255,0.15); border-radius:var(--radius-sm);">
+                    <div class="scanner-sort-box">
+                        <span class="control-box-label">Sıralama:</span>
+                        <select id="scannerSortSelect" class="form-select-pro mono">
                             <option value="volume">Hacim (En Yüksek)</option>
-                            <option value="change">24s Değişim %</option>
+                            <option value="change">24s Değişim (%)</option>
                             <option value="signal">Sinyal Önceliği</option>
                         </select>
                     </div>
                 </div>
 
-                <!-- Scanner Table -->
-                <div class="table-responsive">
-                    <table class="trades-table">
+                <!-- Live Scanner Table -->
+                <div class="table-responsive-wrapper">
+                    <table class="pro-data-table scanner-table">
                         <thead>
                             <tr>
                                 <th># Parite</th>
                                 <th>Anlık Fiyat ($)</th>
                                 <th>24s Değişim (%)</th>
                                 <th>24s Hacim ($ USDT)</th>
-                                <th>EMA Trendi</th>
+                                <th>EMA 9/21 Trendi</th>
                                 <th>RSI (14)</th>
-                                <th>Canlı Strateji Sinyali</th>
+                                <th>Day-Trading Sinyali</th>
                                 <th>Hızlı İşlem</th>
                             </tr>
                         </thead>
                         <tbody id="scannerTableBody">
                             <tr>
-                                <td colspan="8" class="text-center text-muted" style="padding: 32px;">Binance Vadeli Piyasalarındaki 100+ Koin Taranıyor...</td>
+                                <td colspan="8" class="text-center text-muted" style="padding: 36px;">Binance Vadeli Piyasalarındaki 100+ Koin Taranıyor...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -534,95 +569,101 @@
             </div>
         </div>
 
-    </div>
+    </main>
 
     <!-- Loading Overlay -->
-    <div id="loadingOverlay" class="loading-overlay" style="display:none;">
-        <div class="spinner"></div>
-        <div id="loadingText" class="loading-text">Binance Vadeli Piyasalar Verileri Çekiliyor...</div>
+    <div id="loadingOverlay" class="pro-loading-overlay" style="display:none;">
+        <div class="pro-spinner"></div>
+        <div id="loadingText" class="pro-loading-text mono">Binance Vadeli Piyasalar Verileri Çekiliyor...</div>
     </div>
 
-    <!-- Binance Testnet API Modal -->
-    <div id="testnetModal" class="modal-overlay" style="display:none;">
-        <div class="modal-content glass-card">
-            <div class="modal-header">
-                <h3>🔑 Binance Futures Testnet Entegrasyonu</h3>
-                <button id="closeTestnetModalBtn" class="close-btn">&times;</button>
+    <!-- Binance Testnet API Keys Modal -->
+    <div id="testnetModal" class="pro-modal-overlay" style="display:none;">
+        <div class="pro-modal-window glass-panel">
+            <div class="pro-modal-header">
+                <div class="modal-title-group">
+                    <span class="modal-icon">🔑</span>
+                    <h3>Binance Futures Testnet API Entegrasyonu</h3>
+                </div>
+                <button id="closeTestnetModalBtn" class="pro-modal-close-btn">&times;</button>
             </div>
-            <div class="modal-body">
-                <p class="opt-desc">Binance Futures Testnet (`testnet.binancefuture.com`) hesabınızdan aldığınız API Anahtarlarını girerek emirlerinizi resmi Binance Testnet borsasına iletebilirsiniz:</p>
+            <div class="pro-modal-body">
+                <p class="modal-info-text">Binance Futures Testnet (<span class="mono text-cyan">testnet.binancefuture.com</span>) hesabınızdan aldığınız API Anahtarlarını girerek emirlerinizi doğrudan resmi Binance Testnet borsasına iletebilirsiniz:</p>
 
-                <div class="form-group" style="margin-bottom: 16px;">
-                    <label class="control-label">API Key:</label>
-                    <input type="text" id="testnetApiKeyInput" class="form-select" placeholder="Binance Futures Testnet API Key" style="width:100%; margin-top:6px;">
+                <div class="form-group-field">
+                    <label class="control-box-label">API KEY:</label>
+                    <input type="text" id="testnetApiKeyInput" class="form-input-pro mono" placeholder="Binance Futures Testnet API Key">
                 </div>
 
-                <div class="form-group" style="margin-bottom: 16px;">
-                    <label class="control-label">Secret Key:</label>
-                    <input type="password" id="testnetApiSecretInput" class="form-select" placeholder="Binance Futures Testnet Secret Key" style="width:100%; margin-top:6px;">
+                <div class="form-group-field">
+                    <label class="control-box-label">SECRET KEY:</label>
+                    <input type="password" id="testnetApiSecretInput" class="form-input-pro mono" placeholder="Binance Futures Testnet Secret Key">
                 </div>
             </div>
-            <div class="modal-footer">
-                <button id="saveTestnetKeysBtn" class="btn btn-primary">Kaydet ve Aktifleştir</button>
+            <div class="pro-modal-footer">
+                <button id="saveTestnetKeysBtn" class="btn btn-primary-pro">Kaydet ve Borsaya Bağlan</button>
             </div>
         </div>
     </div>
 
-    <!-- Optimization Parameter Dialog Modal -->
-    <div id="optimizationModal" class="modal-overlay" style="display:none;">
-        <div class="modal-content glass-card">
-            <div class="modal-header">
-                <h3>⚡ Optimizasyon Motoru Tamamlandı</h3>
-                <button id="closeModalBtn" class="close-btn">&times;</button>
+    <!-- Strategy Optimization Dialog Modal -->
+    <div id="optimizationModal" class="pro-modal-overlay" style="display:none;">
+        <div class="pro-modal-window glass-panel">
+            <div class="pro-modal-header">
+                <div class="modal-title-group">
+                    <span class="modal-icon">⚡</span>
+                    <h3>Optimizasyon Motoru Tamamlandı</h3>
+                </div>
+                <button id="closeModalBtn" class="pro-modal-close-btn">&times;</button>
             </div>
-            <div class="modal-body">
-                <p class="opt-desc">Son 200 mum verisinde tüm indikatör kombinasyonları (EMA, RSI, ATR) taranarak **en yüksek net kâr ve kazanma oranına sahip** optimal parametre kümesi hesaplandı:</p>
+            <div class="pro-modal-body">
+                <p class="modal-info-text">Son 200 mum verisinde tüm indikatör kombinasyonları (EMA, RSI, ADX, ATR) taranarak **en yüksek net kâr ve kazanma oranına sahip** optimal parametre kümesi hesaplandı:</p>
                 
-                <div class="opt-params-grid">
-                    <div class="opt-param-box">
-                        <span class="opt-label">Hızlı EMA Periyodu:</span>
-                        <span id="optEmaFast" class="opt-val">50</span>
+                <div class="opt-specs-grid">
+                    <div class="opt-spec-item">
+                        <span class="opt-spec-lbl">Hızlı EMA Periyodu:</span>
+                        <span id="optEmaFast" class="opt-spec-val mono text-cyan">9</span>
                     </div>
-                    <div class="opt-param-box">
-                        <span class="opt-label">Yavaş EMA Periyodu:</span>
-                        <span id="optEmaSlow" class="opt-val">200</span>
+                    <div class="opt-spec-item">
+                        <span class="opt-spec-lbl">Yavaş EMA Periyodu:</span>
+                        <span id="optEmaSlow" class="opt-spec-val mono text-cyan">21</span>
                     </div>
-                    <div class="opt-param-box">
-                        <span class="opt-label">RSI Periyodu:</span>
-                        <span id="optRsiPeriod" class="opt-val">14</span>
+                    <div class="opt-spec-item">
+                        <span class="opt-spec-lbl">RSI Periyodu:</span>
+                        <span id="optRsiPeriod" class="opt-spec-val mono text-purple">14</span>
                     </div>
-                    <div class="opt-param-box">
-                        <span class="opt-label">RSI Long Alım Eşiği:</span>
-                        <span id="optRsiBuy" class="opt-val">30</span>
+                    <div class="opt-spec-item">
+                        <span class="opt-spec-lbl">RSI Long Alım Eşiği:</span>
+                        <span id="optRsiBuy" class="opt-spec-val mono text-emerald">38</span>
                     </div>
-                    <div class="opt-param-box">
-                        <span class="opt-label">RSI Short Satım Eşiği:</span>
-                        <span id="optRsiSell" class="opt-val">70</span>
+                    <div class="opt-spec-item">
+                        <span class="opt-spec-lbl">RSI Short Satım Eşiği:</span>
+                        <span id="optRsiSell" class="opt-spec-val mono text-rose">62</span>
                     </div>
-                    <div class="opt-param-box">
-                        <span class="opt-label">ATR Risk Çarpanları:</span>
-                        <span id="optAtrRisk" class="opt-val">2.0x SL / 4.0x TP</span>
+                    <div class="opt-spec-item">
+                        <span class="opt-spec-lbl">ATR Risk Çarpanları:</span>
+                        <span id="optAtrRisk" class="opt-spec-val mono text-amber">1.5x SL / 3.0x TP</span>
                     </div>
                 </div>
 
-                <div class="opt-results-summary">
-                    <div class="opt-res-item">
+                <div class="opt-summary-strip">
+                    <div class="opt-summary-metric">
                         <span>Hesaplanan Net Getiri:</span>
-                        <strong id="optNetReturn" class="positive">+0.0%</strong>
+                        <strong id="optNetReturn" class="mono positive">+0.0%</strong>
                     </div>
-                    <div class="opt-res-item">
+                    <div class="opt-summary-metric">
                         <span>Optimizasyon Win Rate:</span>
-                        <strong id="optWinRate">0.0%</strong>
+                        <strong id="optWinRate" class="mono">0.0%</strong>
                     </div>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button id="applyOptBtn" class="btn btn-primary">Optimalleri Uygula ve Analiz Et</button>
+            <div class="pro-modal-footer">
+                <button id="applyOptBtn" class="btn btn-primary-pro">Optimalleri Uygula ve Analiz Et</button>
             </div>
         </div>
     </div>
 
-    <!-- Scripts -->
+    <!-- Core Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <script src="yahooFinanceService.js"></script>
     <script src="binanceDemoEngine.js"></script>

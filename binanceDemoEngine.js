@@ -755,9 +755,9 @@ class BinanceDemoEngine {
 
     getMetrics() {
         const totalTrades = this.closedTrades.length;
-        const winTrades = this.closedTrades.filter(t => t.realizedPnl > 0).length;
+        const winTrades = this.closedTrades.filter(t => (t.pnl !== undefined ? t.pnl : (t.realizedPnl || 0)) > 0).length;
         const winRate = totalTrades > 0 ? (winTrades / totalTrades) * 100 : 0;
-        const totalRealizedPnl = this.closedTrades.reduce((acc, t) => acc + t.realizedPnl, 0);
+        const totalRealizedPnl = this.closedTrades.reduce((acc, t) => acc + (t.pnl !== undefined ? t.pnl : (t.realizedPnl || 0)), 0);
 
         return {
             balance: this.balance,

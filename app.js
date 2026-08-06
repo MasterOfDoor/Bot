@@ -534,7 +534,7 @@ class App {
         this.searchBtn = document.getElementById('searchBtn');
         this.intervalSelect = document.getElementById('intervalSelect');
         this.optimizeBtn = document.getElementById('optimizeBtn');
-        this.popularChips = document.querySelectorAll('.chip');
+        this.popularChips = document.querySelectorAll('.asset-chip, .chip');
         this.refreshBtn = document.getElementById('refreshBtn');
 
         this.modal = document.getElementById('optimizationModal');
@@ -566,7 +566,7 @@ class App {
             if (activeBtn) activeBtn.classList.add('active');
             if (activeContent) {
                 activeContent.classList.add('active');
-                activeContent.style.display = 'block';
+                activeContent.style.display = 'flex';
             }
         };
 
@@ -610,18 +610,15 @@ class App {
 
         if (this.closeModalBtn) {
             this.closeModalBtn.addEventListener('click', () => {
-                this.modal.style.display = 'none';
+                if (this.modal) this.modal.style.display = 'none';
             });
         }
 
         if (this.applyOptBtn) {
             this.applyOptBtn.addEventListener('click', () => {
                 if (this.optimalParams) {
-                    // Update active strategy parameters
                     this.strategy.activeParams = { ...this.optimalParams };
-                    this.modal.style.display = 'none';
-
-                    // Re-run analysis with optimal parameters
+                    if (this.modal) this.modal.style.display = 'none';
                     this.rawAnalysisResult = this.strategy.analyze(this.rawChartData.candles, this.strategy.activeParams);
                     this.updateDisplaySlice();
                 }
@@ -632,7 +629,9 @@ class App {
             chip.addEventListener('click', () => {
                 const sym = chip.dataset.symbol;
                 if (sym) {
-                    this.symbolInput.value = sym;
+                    this.popularChips.forEach(c => c.classList.remove('active'));
+                    chip.classList.add('active');
+                    if (this.symbolInput) this.symbolInput.value = sym;
                     this.currentSymbol = sym;
                     this.loadData();
                 }
@@ -1283,6 +1282,11 @@ class App {
 
         this.demoBalanceText = document.getElementById('demoBalanceText');
         this.demoTotalReturnText = document.getElementById('demoTotalReturnText');
+        this.topHeaderBalance = document.getElementById('topHeaderBalance');
+        this.topHeaderPnl = document.getElementById('topHeaderPnl');
+        this.topHeaderPositions = document.getElementById('topHeaderPositions');
+        this.activePosCountBadge = document.getElementById('activePosCountBadge');
+
         this.autoTradeToggle = document.getElementById('autoTradeToggle');
         this.autoTradeStatusText = document.getElementById('autoTradeStatusText');
         this.resetWalletBtn = document.getElementById('resetWalletBtn');
@@ -1296,22 +1300,8 @@ class App {
 
         this.openTestLongBtn = document.getElementById('openTestLongBtn');
         this.openTestShortBtn = document.getElementById('openTestShortBtn');
-        this.closePositionBtn = document.getElementById('closePositionBtn');
-
-        this.activePositionCard = document.getElementById('activePositionCard');
         this.noPositionView = document.getElementById('noPositionView');
-        this.hasPositionView = document.getElementById('hasPositionView');
-
-        this.posBadge = document.getElementById('posBadge');
-        this.posSymbol = document.getElementById('posSymbol');
-        this.posEntryPrice = document.getElementById('posEntryPrice');
-        this.posMarkPrice = document.getElementById('posMarkPrice');
-        this.posMargin = document.getElementById('posMargin');
-        this.posNotional = document.getElementById('posNotional');
-        this.posPnlText = document.getElementById('posPnlText');
-        this.posSlText = document.getElementById('posSlText');
-        this.posTpText = document.getElementById('posTpText');
-        this.posLiqText = document.getElementById('posLiqText');
+        this.activePositionsGrid = document.getElementById('activePositionsGrid');
 
         // Margin Type Segmented Buttons (ISOLATED/CROSSED)
         const marginBtns = document.querySelectorAll('.btn-seg-margin');
@@ -1386,15 +1376,15 @@ class App {
         this.customSlInput = document.getElementById('customSlInput');
         this.customTpInput = document.getElementById('customTpInput');
 
-        // Manual Test Positions
+        // Manual Test Positions (with 1.5x ATR SL and 3.0x ATR TP)
         if (this.openTestLongBtn) {
             this.openTestLongBtn.addEventListener('click', () => {
                 if (this.displayData && this.displayData.candles.length > 0) {
                     const last = this.displayData.candles[this.displayData.candles.length - 1];
                     const atr = this.displayData.atr[this.displayData.atr.length - 1] || (last.close * 0.015);
                     
-                    let sl = this.customSlInput && this.customSlInput.value ? parseFloat(this.customSlInput.value) : (last.close - (atr * 2.0));
-                    let tp = this.customTpInput && this.customTpInput.value ? parseFloat(this.customTpInput.value) : (last.close + (atr * 4.0));
+                    let sl = this.customSlInput && this.customSlInput.value ? parseFloat(this.customSlInput.value) : (last.close - (atr * 1.5));
+                    let tp = this.customTpInput && this.customTpInput.value ? parseFloat(this.customTpInput.value) : (last.close + (atr * 3.0));
 
                     this.demoEngine.openPosition(this.displayData.symbol, 'LONG', last.close, sl, tp);
                     this.updateDemoUI();
@@ -1408,20 +1398,10 @@ class App {
                     const last = this.displayData.candles[this.displayData.candles.length - 1];
                     const atr = this.displayData.atr[this.displayData.atr.length - 1] || (last.close * 0.015);
                     
-                    let sl = this.customSlInput && this.customSlInput.value ? parseFloat(this.customSlInput.value) : (last.close + (atr * 2.0));
-                    let tp = this.customTpInput && this.customTpInput.value ? parseFloat(this.customTpInput.value) : (last.close - (atr * 4.0));
+                    let sl = this.customSlInput && this.customSlInput.value ? parseFloat(this.customSlInput.value) : (last.close + (atr * 1.5));
+                    let tp = this.customTpInput && this.customTpInput.value ? parseFloat(this.customTpInput.value) : (last.close - (atr * 3.0));
 
                     this.demoEngine.openPosition(this.displayData.symbol, 'SHORT', last.close, sl, tp);
-                    this.updateDemoUI();
-                }
-            });
-        }
-
-        if (this.closePositionBtn) {
-            this.closePositionBtn.addEventListener('click', () => {
-                if (this.displayData && this.displayData.candles.length > 0) {
-                    const last = this.displayData.candles[this.displayData.candles.length - 1];
-                    this.demoEngine.closeCurrentPosition(last.close, 'MANUEL');
                     this.updateDemoUI();
                 }
             });
@@ -1489,7 +1469,12 @@ class App {
 
     checkAutoTraderSignals(lastCandle) {
         if (!this.demoEngine || !this.demoEngine.isAutoTraderEnabled || !this.displayData) return;
-        if (this.demoEngine.currentPosition) return; // Position already open
+        
+        // Check if multi-position capacity is full
+        if (this.demoEngine.activePositions.length >= this.demoEngine.maxPositions) return;
+
+        // Check if this symbol already has an open position
+        if (this.demoEngine.activePositions.some(p => p.symbol === this.displayData.symbol)) return;
 
         const status = this.displayData.currentStatus;
         if (!status || status.type === 'NEUTRAL') return;
@@ -1499,12 +1484,12 @@ class App {
         let tp = null;
 
         if (status.type === 'BUY') {
-            sl = lastCandle.close - (atr * 2.0);
-            tp = lastCandle.close + (atr * 4.0);
+            sl = lastCandle.close - (atr * 1.5);
+            tp = lastCandle.close + (atr * 3.0);
             this.demoEngine.openPosition(this.displayData.symbol, 'LONG', lastCandle.close, sl, tp);
         } else if (status.type === 'SELL') {
-            sl = lastCandle.close + (atr * 2.0);
-            tp = lastCandle.close - (atr * 4.0);
+            sl = lastCandle.close + (atr * 1.5);
+            tp = lastCandle.close - (atr * 3.0);
             this.demoEngine.openPosition(this.displayData.symbol, 'SHORT', lastCandle.close, sl, tp);
         }
 
@@ -1514,100 +1499,197 @@ class App {
     updateDemoUI(currentPrice = null) {
         if (!this.demoEngine) return;
 
-        if (currentPrice) {
-            this.demoEngine.onPriceTick(currentPrice);
+        if (currentPrice && this.displayData) {
+            this.demoEngine.onPriceTick(currentPrice, this.displayData.symbol);
         }
 
         const metrics = this.demoEngine.getMetrics();
-
-        if (this.demoBalanceText) {
-            this.demoBalanceText.innerText = `$${metrics.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT`;
-        }
-
-        if (this.demoTotalReturnText) {
-            const relPnl = metrics.totalRealizedPnl;
-            const retPct = metrics.totalReturnPct;
-            this.demoTotalReturnText.innerText = `Gerçekleşmiş Kâr: ${relPnl >= 0 ? '+' : ''}$${relPnl.toFixed(2)} (${retPct >= 0 ? '+' : ''}${retPct.toFixed(2)}%)`;
-            this.demoTotalReturnText.className = `demo-stat-sub ${relPnl >= 0 ? 'text-success' : 'text-danger'}`;
-        }
-
         const activePositions = this.demoEngine.activePositions || [];
 
+        // Calculate total unrealized PnL across all open positions
+        let totalUnrealizedPnl = 0;
+        activePositions.forEach(p => {
+            totalUnrealizedPnl += (p.unrealizedPnl || 0);
+        });
+
+        const formattedBalance = `$${metrics.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+        if (this.demoBalanceText) {
+            this.demoBalanceText.innerText = `${formattedBalance} USDT`;
+        }
+        if (this.topHeaderBalance) {
+            this.topHeaderBalance.innerText = formattedBalance;
+        }
+
+        const relPnl = metrics.totalRealizedPnl;
+        const retPct = metrics.totalReturnPct;
+        const pnlSign = relPnl >= 0 ? '+' : '';
+        const pnlText = `${pnlSign}$${relPnl.toFixed(2)} (${retPct >= 0 ? '+' : ''}${retPct.toFixed(2)}%)`;
+
+        if (this.demoTotalReturnText) {
+            this.demoTotalReturnText.innerText = `Gerçekleşmiş Kâr: ${pnlText}`;
+            this.demoTotalReturnText.className = `demo-stat-sub ${relPnl >= 0 ? 'text-success' : 'text-danger'}`;
+        }
+        if (this.topHeaderPnl) {
+            this.topHeaderPnl.innerText = pnlText;
+            this.topHeaderPnl.className = `top-stat-val mono ${relPnl >= 0 ? 'text-success' : 'text-danger'}`;
+        }
+
+        const posCountStr = `${activePositions.length} / ${this.demoEngine.maxPositions} DOLU`;
+        if (this.topHeaderPositions) {
+            this.topHeaderPositions.innerText = posCountStr;
+        }
+        if (this.activePosCountBadge) {
+            this.activePosCountBadge.innerText = posCountStr;
+        }
         if (this.tabPosBadge) {
-            if (activePositions.length > 0) {
-                this.tabPosBadge.innerText = `${activePositions.length}/${this.demoEngine.maxPositions} Açık Pozisyon`;
-                this.tabPosBadge.style.display = 'inline-block';
-            } else {
-                this.tabPosBadge.style.display = 'none';
+            this.tabPosBadge.innerText = `${activePositions.length}/${this.demoEngine.maxPositions} Pozisyon`;
+            this.tabPosBadge.style.display = activePositions.length > 0 ? 'inline-block' : 'none';
+        }
+
+        // Update Dynamic ATR 1.5x SL / 3.0x TP Forecast for Current Symbol
+        if (this.displayData && this.displayData.candles && this.displayData.candles.length > 0) {
+            const candles = this.displayData.candles;
+            const lastCandle = candles[candles.length - 1];
+            const atr = this.displayData.atr[this.displayData.atr.length - 1] || (lastCandle.close * 0.015);
+            const livePx = currentPrice || lastCandle.close;
+
+            const longSl = livePx - (atr * 1.5);
+            const longTp = livePx + (atr * 3.0);
+            const shortSl = livePx + (atr * 1.5);
+            const shortTp = livePx - (atr * 3.0);
+
+            const precision = livePx < 1 ? 4 : 2;
+
+            const botLongSlEl = document.getElementById('botLongSlText');
+            if (botLongSlEl) botLongSlEl.innerText = `$${longSl.toFixed(precision)} (-$${(atr * 1.5).toFixed(precision)})`;
+
+            const botLongTpEl = document.getElementById('botLongTpText');
+            if (botLongTpEl) botLongTpEl.innerText = `$${longTp.toFixed(precision)} (+$${(atr * 3.0).toFixed(precision)})`;
+
+            const botShortSlEl = document.getElementById('botShortSlText');
+            if (botShortSlEl) botShortSlEl.innerText = `$${shortSl.toFixed(precision)} (+$${(atr * 1.5).toFixed(precision)})`;
+
+            const botShortTpEl = document.getElementById('botShortTpText');
+            if (botShortTpEl) botShortTpEl.innerText = `$${shortTp.toFixed(precision)} (-$${(atr * 3.0).toFixed(precision)})`;
+        }
+
+        // Dynamic Multi-Position Cards Rendering
+        if (activePositions.length === 0) {
+            if (this.noPositionView) this.noPositionView.style.display = 'flex';
+            if (this.activePositionsGrid) {
+                this.activePositionsGrid.style.display = 'none';
+                this.activePositionsGrid.innerHTML = '';
+            }
+        } else {
+            if (this.noPositionView) this.noPositionView.style.display = 'none';
+            if (this.activePositionsGrid) {
+                this.activePositionsGrid.style.display = 'grid';
+
+                let cardsHtml = '';
+                activePositions.forEach(pos => {
+                    const isLong = pos.direction === 'LONG';
+                    const markPx = (pos.symbol === (this.displayData ? this.displayData.symbol : '')) && currentPrice ? currentPrice : pos.entryPrice;
+                    const pnl = pos.unrealizedPnl || 0;
+                    const pnlPct = pos.unrealizedPnlPct || 0;
+                    const pnlClass = pnl >= 0 ? 'text-success' : 'text-danger';
+                    const precision = pos.entryPrice < 1 ? 4 : 2;
+
+                    cardsHtml += `
+                        <div class="pro-pos-card ${isLong ? 'long-card' : 'short-card'}">
+                            <div class="pos-card-header">
+                                <div class="pos-card-title">
+                                    <span class="pos-dir-pill ${isLong ? 'long' : 'short'}">${pos.direction} ${pos.leverage}x</span>
+                                    <span class="pos-symbol-name mono">${pos.symbol}</span>
+                                    <span class="version-tag">${pos.marginType || 'ISOLATED'}</span>
+                                </div>
+                                <button class="btn-close-pos-sm btn-close-card" data-symbol="${pos.symbol}">
+                                    ❌ Kapat
+                                </button>
+                            </div>
+                            <div class="pos-pnl-hero-box">
+                                <div class="pos-pnl-label">ANLIK NET KÂR / ZARAR (PnL)</div>
+                                <div class="pos-pnl-hero-val mono ${pnlClass}">
+                                    ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} (${pnlPct >= 0 ? '+' : ''}${pnlPct.toFixed(2)}%)
+                                </div>
+                            </div>
+                            <div class="pos-card-metrics-grid mono">
+                                <div class="pos-metric-cell">
+                                    <span class="pos-metric-cell-lbl">GİRİŞ FİYATI</span>
+                                    <span class="pos-metric-cell-val">$${pos.entryPrice.toFixed(precision)}</span>
+                                </div>
+                                <div class="pos-metric-cell">
+                                    <span class="pos-metric-cell-lbl">GÜNCEL MARK FİYAT</span>
+                                    <span class="pos-metric-cell-val text-cyan">$${markPx.toFixed(precision)}</span>
+                                </div>
+                                <div class="pos-metric-cell">
+                                    <span class="pos-metric-cell-lbl">KULLANILAN MARJİN</span>
+                                    <span class="pos-metric-cell-val">$${pos.margin.toFixed(2)} USDT</span>
+                                </div>
+                                <div class="pos-metric-cell">
+                                    <span class="pos-metric-cell-lbl">LİKİDASYON FİYATI</span>
+                                    <span class="pos-metric-cell-val text-danger">$${pos.liqPrice.toFixed(precision)}</span>
+                                </div>
+                            </div>
+                            <div class="pos-target-track-box mono">
+                                <div class="pos-targets-row">
+                                    <span class="text-danger font-bold">🛡️ SL: $${pos.slPrice ? pos.slPrice.toFixed(precision) : '-'}</span>
+                                    <span class="text-success font-bold">🎯 TP: $${pos.tpPrice ? pos.tpPrice.toFixed(precision) : '-'}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                this.activePositionsGrid.innerHTML = cardsHtml;
+
+                // Hook up individual position close buttons
+                const closeBtns = this.activePositionsGrid.querySelectorAll('.btn-close-card');
+                closeBtns.forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const sym = btn.dataset.symbol;
+                        if (sym) {
+                            const lastPx = (this.displayData && this.displayData.symbol === sym && currentPrice) ? currentPrice : null;
+                            this.demoEngine.closeCurrentPosition(sym, lastPx, 'MANUEL');
+                            this.updateDemoUI();
+                        }
+                    });
+                });
             }
         }
 
-        if (activePositions.length === 0) {
-            if (this.noPositionView) this.noPositionView.style.display = 'flex';
-            if (this.hasPositionView) this.hasPositionView.style.display = 'none';
-        } else {
-            if (this.noPositionView) this.noPositionView.style.display = 'none';
-            if (this.hasPositionView) {
-                this.hasPositionView.style.display = 'block';
+        // Render Live Binance Open SL/TP Orders
+        const openOrdersBadge = document.getElementById('openOrdersBadge');
+        const openOrdersList = document.getElementById('openOrdersList');
+        const orders = this.demoEngine.openOrders || [];
 
-                const firstPos = activePositions[0];
-                if (this.posBadge) {
-                    this.posBadge.innerText = `${firstPos.direction} ${firstPos.leverage}x (${activePositions.length}/${this.demoEngine.maxPositions})`;
-                    this.posBadge.className = `status-pill ${firstPos.direction === 'LONG' ? 'buy' : 'sell'}`;
-                }
+        if (openOrdersBadge) {
+            openOrdersBadge.innerText = `${orders.length} Bekleyen Emir`;
+        }
 
-                if (this.posSymbol) this.posSymbol.innerText = firstPos.symbol;
-                if (this.posEntryPrice) this.posEntryPrice.innerText = `$${firstPos.entryPrice.toFixed(2)}`;
-                
-                const livePx = currentPrice || firstPos.entryPrice;
-                if (this.posMarkPrice) this.posMarkPrice.innerText = `$${livePx.toFixed(2)}`;
-
-                if (this.posMargin) this.posMargin.innerText = `$${firstPos.margin.toFixed(2)} USDT`;
-                if (this.posNotional) this.posNotional.innerText = `$${firstPos.notionalValue.toFixed(2)} USDT`;
-
-                if (this.posPnlText) {
-                    this.posPnlText.innerText = `${firstPos.unrealizedPnl >= 0 ? '+' : ''}$${firstPos.unrealizedPnl.toFixed(2)} (${firstPos.unrealizedPnlPct >= 0 ? '+' : ''}${firstPos.unrealizedPnlPct.toFixed(2)}%)`;
-                    this.posPnlText.className = `pos-val ${firstPos.unrealizedPnl >= 0 ? 'text-success' : 'text-danger'}`;
-                }
-
-                if (this.posSlText) this.posSlText.innerText = firstPos.slPrice ? `$${firstPos.slPrice.toFixed(2)}` : '-';
-                if (this.posTpText) this.posTpText.innerText = firstPos.tpPrice ? `$${firstPos.tpPrice.toFixed(2)}` : '-';
-                if (this.posLiqText) this.posLiqText.innerText = `$${firstPos.liqPrice.toFixed(2)}`;
-            }
-
-            // Render Live Binance Open SL/TP Orders
-            const openOrdersBadge = document.getElementById('openOrdersBadge');
-            const openOrdersList = document.getElementById('openOrdersList');
-            const orders = this.demoEngine.openOrders || [];
-
-            if (openOrdersBadge) {
-                openOrdersBadge.innerText = `${orders.length} Bekleyen Emir`;
-            }
-
-            if (openOrdersList) {
-                if (orders.length === 0) {
-                    openOrdersList.innerHTML = `<div class="text-muted" style="font-size:0.82rem;">Binance borsasında bekleyen aktif emriniz bulunmuyor.</div>`;
-                } else {
-                    let html = `<div style="display:flex; flex-direction:column; gap:6px;">`;
-                    orders.forEach(o => {
-                        const isSl = o.type === 'STOP_MARKET';
-                        const badgeClass = isSl ? 'status-pill sell' : 'status-pill buy';
-                        const typeLabel = isSl ? '🛡️ STOP LOSS (Borsa Emri)' : '🎯 TAKE PROFIT (Borsa Emri)';
-                        html += `
-                            <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(0,0,0,0.25); padding:8px 12px; border-radius:6px;">
-                                <div style="display:flex; align-items:center; gap:8px;">
-                                    <span class="${badgeClass}" style="font-size:0.7rem;">${o.symbol} ${o.side}</span>
-                                    <span style="font-weight:600; font-size:0.85rem;">${typeLabel}</span>
-                                </div>
-                                <div style="font-weight:700; color:${isSl ? 'var(--accent-rose)' : 'var(--accent-emerald)'}; font-size:0.9rem;">
-                                    Tetiklenme Fiyatı: $${parseFloat(o.stopPrice || o.price).toFixed(2)}
-                                </div>
+        if (openOrdersList) {
+            if (orders.length === 0) {
+                openOrdersList.innerHTML = `<div class="text-muted" style="font-size:0.82rem;">Binance borsasında bekleyen aktif emriniz bulunmuyor.</div>`;
+            } else {
+                let html = `<div style="display:flex; flex-direction:column; gap:6px;">`;
+                orders.forEach(o => {
+                    const isSl = o.type === 'STOP_MARKET';
+                    const badgeClass = isSl ? 'status-pill sell' : 'status-pill buy';
+                    const typeLabel = isSl ? '🛡️ STOP LOSS (Borsa Emri)' : '🎯 TAKE PROFIT (Borsa Emri)';
+                    html += `
+                        <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(0,0,0,0.25); padding:8px 12px; border-radius:6px;">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span class="${badgeClass}" style="font-size:0.7rem;">${o.symbol} ${o.side}</span>
+                                <span style="font-weight:600; font-size:0.85rem;">${typeLabel}</span>
                             </div>
-                        `;
-                    });
-                    html += `</div>`;
-                    openOrdersList.innerHTML = html;
-                }
+                            <div style="font-weight:700; color:${isSl ? 'var(--accent-rose)' : 'var(--accent-emerald)'}; font-size:0.9rem;">
+                                Tetiklenme Fiyatı: $${parseFloat(o.stopPrice || o.price).toFixed(2)}
+                            </div>
+                        </div>
+                    `;
+                });
+                html += `</div>`;
+                openOrdersList.innerHTML = html;
             }
         }
     }
@@ -1679,27 +1761,27 @@ class App {
             const volText = `$${(s.volume24h / 1000000).toFixed(1)}M`;
 
             let rsiClass = 'text-muted';
-            if (s.rsi < 35) rsiClass = 'text-success font-bold';
-            if (s.rsi > 65) rsiClass = 'text-danger font-bold';
+            if (s.rsi < 38) rsiClass = 'text-success font-bold';
+            if (s.rsi > 62) rsiClass = 'text-danger font-bold';
 
-            let sigBadge = `<span class="status-pill neutral" style="font-size:0.75rem;">BEKLEMEDE</span>`;
+            let sigBadge = `<span class="signal-pill-badge neutral mono">BEKLEMEDE</span>`;
             if (s.signal === 'BUY_LONG') {
-                sigBadge = `<span class="status-pill buy" style="font-size:0.75rem;">🟢 LONG ALIM</span>`;
+                sigBadge = `<span class="signal-pill-badge buy mono">🟢 LONG ALIM</span>`;
             } else if (s.signal === 'SELL_SHORT') {
-                sigBadge = `<span class="status-pill sell" style="font-size:0.75rem;">🔴 SHORT SATIM</span>`;
+                sigBadge = `<span class="signal-pill-badge sell mono">🔴 SHORT SATIM</span>`;
             }
 
             html += `
                 <tr>
-                    <td><strong style="color:#fff;">${s.symbol}</strong></td>
-                    <td>$${s.price.toFixed(s.price < 1 ? 4 : 2)}</td>
-                    <td class="${chgClass} font-bold">${chgText}</td>
-                    <td>${volText}</td>
-                    <td>${s.isEmaBullish ? '<span class="text-success">EMA Yükseliş</span>' : '<span class="text-danger">EMA Düşüş</span>'}</td>
-                    <td class="${rsiClass}">${s.rsi}</td>
+                    <td><strong style="color:#fff;" class="mono">${s.symbol}</strong></td>
+                    <td class="mono font-bold">$${s.price.toFixed(s.price < 1 ? 4 : 2)}</td>
+                    <td class="${chgClass} font-bold mono">${chgText}</td>
+                    <td class="mono">${volText}</td>
+                    <td>${s.isEmaBullish ? '<span class="text-success font-bold">EMA 9 > 21 (Yükseliş)</span>' : '<span class="text-danger font-bold">EMA 9 < 21 (Düşüş)</span>'}</td>
+                    <td class="${rsiClass} mono">${s.rsi}</td>
                     <td>${sigBadge}</td>
                     <td>
-                        <button class="btn btn-outline-sm btn-select-symbol" data-symbol="${s.symbol}" style="font-size:0.78rem; padding:4px 10px;">
+                        <button class="btn btn-primary-xs btn-select-symbol" data-symbol="${s.symbol}">
                             ⚡ Analiz Et
                         </button>
                     </td>
@@ -1718,7 +1800,6 @@ class App {
                     this.currentSymbol = sym;
                     if (this.symbolInput) this.symbolInput.value = sym;
                     this.loadData();
-                    // Switch to Signal Desk tab
                     if (this.tabSignalBtn) this.tabSignalBtn.click();
                 }
             });
