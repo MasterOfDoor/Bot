@@ -7,14 +7,18 @@
 class StrategyEngine {
     constructor() {
         this.activeParams = {
-            emaShort: 50,
-            emaLong: 200,
+            emaShort: 9,
+            emaLong: 21,
             rsiPeriod: 14,
-            rsiBuy: 30,
-            rsiSell: 70,
+            rsiBuy: 38,
+            rsiSell: 62,
             atrPeriod: 14,
-            slMult: 2.0,
-            tpMult: 4.0
+            slMult: 1.5,
+            tpMult: 3.0,
+            volumePeriod: 20,
+            volumeMult: 1.15,
+            adxPeriod: 14,
+            adxThreshold: 20
         };
     }
 
@@ -116,6 +120,82 @@ class StrategyEngine {
         return atr;
     }
 
+    calculateVolumeMA(candles, period = 20) {
+        const volMa = new Array(candles.length).fill(null);
+        if (!candles || candles.length < period) return volMa;
+
+        let sum = 0;
+        for (let i = 0; i < period; i++) sum += candles[i].volume;
+        volMa[period - 1] = sum / period;
+
+        for (let i = period; i < candles.length; i++) {
+            sum += candles[i].volume - candles[i - period].volume;
+            volMa[i] = sum / period;
+        }
+
+        return volMa;
+    }
+
+    calculateADX(candles, period = 14) {
+        const adx = new Array(candles.length).fill(null);
+        if (!candles || candles.length <= period * 2) return adx;
+
+        const tr = [];
+        const plusDM = [];
+        const minusDM = [];
+
+        for (let i = 1; i < candles.length; i++) {
+            const upMove = candles[i].high - candles[i - 1].high;
+            const downMove = candles[i - 1].low - candles[i].low;
+
+            const tr1 = candles[i].high - candles[i].low;
+            const tr2 = Math.abs(candles[i].high - candles[i - 1].close);
+            const tr3 = Math.abs(candles[i].low - candles[i - 1].close);
+            tr.push(Math.max(tr1, tr2, tr3));
+
+            if (upMove > downMove && upMove > 0) plusDM.push(upMove);
+            else plusDM.push(0);
+
+            if (downMove > upMove && downMove > 0) minusDM.push(downMove);
+            else minusDM.push(0);
+        }
+
+        let smoothedTR = tr.slice(0, period).reduce((a, b) => a + b, 0);
+        let smoothedPlusDM = plusDM.slice(0, period).reduce((a, b) => a + b, 0);
+        let smoothedMinusDM = minusDM.slice(0, period).reduce((a, b) => a + b, 0);
+
+        const dxList = [];
+
+        for (let i = period; i < tr.length; i++) {
+            smoothedTR = smoothedTR - (smoothedTR / period) + tr[i];
+            smoothedPlusDM = smoothedPlusDM - (smoothedPlusDM / period) + plusDM[i];
+            smoothedMinusDM = smoothedMinusDM - (smoothedMinusDM / period) + minusDM[i];
+
+            const plusDI = (smoothedPlusDM / smoothedTR) * 100;
+            const minusDI = (smoothedMinusDM / smoothedTR) * 100;
+
+            const diDiff = Math.abs(plusDI - minusDI);
+            const diSum = plusDI + minusDI;
+            const dx = diSum === 0 ? 0 : (diDiff / diSum) * 100;
+
+            dxList.push({ index: i + 1, dx });
+        }
+
+        if (dxList.length >= period) {
+            let sumDX = 0;
+            for (let i = 0; i < period; i++) sumDX += dxList[i].dx;
+            let currentADX = sumDX / period;
+            adx[dxList[period - 1].index] = currentADX;
+
+            for (let i = period; i < dxList.length; i++) {
+                currentADX = (currentADX * (period - 1) + dxList[i].dx) / period;
+                adx[dxList[i].index] = currentADX;
+            }
+        }
+
+        return adx;
+    }
+
     analyze(candles, customParams = null) {
         if (!candles || candles.length === 0) return null;
 
@@ -125,6 +205,8 @@ class StrategyEngine {
         const ema200 = this.calculateEMA(candles, p.emaLong);
         const rsi = this.calculateRSI(candles, p.rsiPeriod);
         const atr = this.calculateATR(candles, p.atrPeriod);
+        const volMa = this.calculateVolumeMA(candles, p.volumePeriod || 20);
+        const adx = this.calculateADX(candles, p.adxPeriod || 14);
 
         const trades = [];
         const signals = new Array(candles.length).fill(null);
@@ -137,6 +219,11 @@ class StrategyEngine {
             const e200 = ema200[i];
             const rVal = rsi[i];
             const atrVal = atr[i];
+            const vMa = volMa[i];
+            const adxVal = adx[i] !== null ? adx[i] : 25; // Default if warming up
+
+            const isVolumeConfirmed = vMa ? (candle.volume >= vMa * (p.volumeMult || 1.15)) : true;
+            const isTrendStrong = adxVal >= (p.adxThreshold || 20);
 
             if (activePosition) {
                 if (activePosition.type === 'LONG') {
@@ -227,7 +314,7 @@ class StrategyEngine {
             }
 
             if (!activePosition && e50 !== null && e200 !== null && rVal !== null && atrVal !== null) {
-                if (e50 > e200 && rVal < p.rsiBuy) {
+                if (e50 > e200 && rVal < p.rsiBuy && isTrendStrong && isVolumeConfirmed) {
                     const entryPrice = candle.close;
                     const slPrice = entryPrice - (atrVal * p.slMult);
                     const tpPrice = entryPrice + (atrVal * p.tpMult);
@@ -242,7 +329,7 @@ class StrategyEngine {
                         atr: atrVal
                     };
                     signals[i] = { type: 'BUY_LONG', price: entryPrice };
-                } else if (e50 < e200 && rVal > p.rsiSell) {
+                } else if (e50 < e200 && rVal > p.rsiSell && isTrendStrong && isVolumeConfirmed) {
                     const entryPrice = candle.close;
                     const slPrice = entryPrice + (atrVal * p.slMult);
                     const tpPrice = entryPrice - (atrVal * p.tpMult);
