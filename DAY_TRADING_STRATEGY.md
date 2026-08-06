@@ -36,10 +36,11 @@ Bir coin üzerinde işlem açılması için **4 ana şartın aynı anda sağlanm
 
 ---
 
-## 3. Risk Yönetimi & Pozisyon Motoru (Order Engine) — ⏳ SIRADAKİ ADIM
+## 3. Risk Yönetimi & Pozisyon Motoru (Order Engine) — ✅ TAMAMLANDI
 
-* **Maksimum Pozisyon Limiti:** Aynı anda en fazla **3 aktif pozisyon** açık tutulabilir.
-* **Kasa Marjini:** İşlem başı bakiye kullanımı **%10 marjin**.
+* **Maksimum Pozisyon Limiti:** Aynı anda en fazla **3 aktif pozisyon** eşzamanlı açık tutulabilir (`maxPositions = 3`).
+* **Akıllı Marjin Yönetimi:** İşlem başı bakiye kullanımı **%10 marjin** (Geride kalan %70 bakiye hesabı likidasyondan korur).
+* **Bağımsız Pozisyon Takibi:** Her pozisyon kendi PnL, SL (%1.5 ATR) ve TP (%3.0 ATR) hedeflerini bağımsız yönetir.
 * **Binance İletimi:** Market Giriş Emri ➔ 600ms Gecikme ➔ `reduceOnly` Destekli Hassas SL & TP Emirleri.
 
 ---
