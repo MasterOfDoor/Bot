@@ -267,6 +267,39 @@ class StrategyEngine {
                         });
                         signals[i] = { type: 'SL_LONG', price: exitPrice };
                         activePosition = null;
+                    } else if (e50 !== null && e200 !== null && e50 < e200 && rVal > p.rsiSell && isTrendStrong) {
+                        // Trend Reversal: Long trend bitti -> Long kapat, Short aç
+                        const exitPrice = candle.close;
+                        const pnlPct = ((exitPrice - activePosition.entryPrice) / activePosition.entryPrice) * 100;
+                        trades.push({
+                            id: trades.length + 1,
+                            type: 'LONG',
+                            entryIndex: activePosition.entryIndex,
+                            entryDate: activePosition.entryDate,
+                            entryPrice: activePosition.entryPrice,
+                            exitIndex: i,
+                            exitDate: candle.date,
+                            exitPrice,
+                            tpPrice: activePosition.tpPrice,
+                            slPrice: activePosition.slPrice,
+                            atr: activePosition.atr,
+                            status: 'CLOSED_TREND_REVERSAL',
+                            pnlPct
+                        });
+                        signals[i] = { type: 'FLIP_TO_SHORT', price: exitPrice };
+
+                        // Hemen SHORT aç
+                        const slPrice = exitPrice + (atrVal * p.slMult);
+                        const tpPrice = exitPrice - (atrVal * p.tpMult);
+                        activePosition = {
+                            type: 'SHORT',
+                            entryIndex: i,
+                            entryDate: candle.date,
+                            entryPrice: exitPrice,
+                            tpPrice,
+                            slPrice,
+                            atr: atrVal
+                        };
                     }
                 } else if (activePosition.type === 'SHORT') {
                     if (candle.low <= activePosition.tpPrice) {
@@ -309,6 +342,39 @@ class StrategyEngine {
                         });
                         signals[i] = { type: 'SL_SHORT', price: exitPrice };
                         activePosition = null;
+                    } else if (e50 !== null && e200 !== null && e50 > e200 && rVal < p.rsiBuy && isTrendStrong) {
+                        // Trend Reversal: Short trend bitti -> Short kapat, Long aç
+                        const exitPrice = candle.close;
+                        const pnlPct = ((activePosition.entryPrice - exitPrice) / activePosition.entryPrice) * 100;
+                        trades.push({
+                            id: trades.length + 1,
+                            type: 'SHORT',
+                            entryIndex: activePosition.entryIndex,
+                            entryDate: activePosition.entryDate,
+                            entryPrice: activePosition.entryPrice,
+                            exitIndex: i,
+                            exitDate: candle.date,
+                            exitPrice,
+                            tpPrice: activePosition.tpPrice,
+                            slPrice: activePosition.slPrice,
+                            atr: activePosition.atr,
+                            status: 'CLOSED_TREND_REVERSAL',
+                            pnlPct
+                        });
+                        signals[i] = { type: 'FLIP_TO_LONG', price: exitPrice };
+
+                        // Hemen LONG aç
+                        const slPrice = exitPrice - (atrVal * p.slMult);
+                        const tpPrice = exitPrice + (atrVal * p.tpMult);
+                        activePosition = {
+                            type: 'LONG',
+                            entryIndex: i,
+                            entryDate: candle.date,
+                            entryPrice: exitPrice,
+                            tpPrice,
+                            slPrice,
+                            atr: atrVal
+                        };
                     }
                 }
             }
@@ -1490,15 +1556,12 @@ class App {
 
     async checkAutoTraderSignals(lastCandle) {
         if (!this.demoEngine || !this.demoEngine.isAutoTraderEnabled || !this.displayData) return;
-        
-        // Check if multi-position capacity is full
-        if (this.demoEngine.activePositions.length >= this.demoEngine.maxPositions) return;
-
-        // Check if this symbol already has an open position
-        if (this.demoEngine.activePositions.some(p => p.symbol === this.displayData.symbol)) return;
 
         const status = this.displayData.currentStatus;
         if (!status || status.type === 'NEUTRAL' || status.state === 'NEUTRAL') return;
+
+        const currentSymbol = this.displayData.symbol;
+        const existingPos = this.demoEngine.activePositions.find(p => p.symbol === currentSymbol);
 
         const atr = (this.displayData.atr && this.displayData.atr.length > 0) 
             ? (this.displayData.atr[this.displayData.atr.length - 1] || (lastCandle.close * 0.015)) 
@@ -1509,17 +1572,34 @@ class App {
 
         if (status.type === 'BUY' || status.state.includes('BUY') || status.state.includes('LONG')) {
             dir = 'LONG';
-            sl = lastCandle.close - (atr * 1.5);
-            tp = lastCandle.close + (atr * 3.0);
+            sl = lastCandle.close - (atr * 1.2);
+            tp = lastCandle.close + (atr * 2.4);
         } else if (status.type === 'SELL' || status.state.includes('SELL') || status.state.includes('SHORT')) {
             dir = 'SHORT';
-            sl = lastCandle.close + (atr * 1.5);
-            tp = lastCandle.close - (atr * 3.0);
+            sl = lastCandle.close + (atr * 1.2);
+            tp = lastCandle.close - (atr * 2.4);
         }
 
-        if (dir) {
-            console.log(`🤖 Auto-Trader opening ${dir} on ${this.displayData.symbol} @ $${lastCandle.close} [SL: $${sl.toFixed(2)} | TP: $${tp.toFixed(2)}]`);
-            await this.demoEngine.openPosition(this.displayData.symbol, dir, lastCandle.close, sl, tp);
+        if (!dir) return;
+
+        // CASE 1: Trend Reverse / Flip Position (e.g. Short trend bitti -> Short kapat, Long aç)
+        if (existingPos) {
+            if (existingPos.direction !== dir) {
+                console.log(`🔄 TREND DÖNÜŞÜ TESPİT EDİLDİ (${existingPos.direction} -> ${dir}) on ${currentSymbol} @ $${lastCandle.close}`);
+                // 1. Ters pozisyonu derhal kapat
+                await this.demoEngine.closeCurrentPosition(currentSymbol, lastCandle.close, `TREND DÖNÜŞÜ (${existingPos.direction} -> ${dir})`);
+                await new Promise(r => setTimeout(r, 400));
+                // 2. Yeni trend yönündeki pozisyonu aç
+                await this.demoEngine.openPosition(currentSymbol, dir, lastCandle.close, sl, tp);
+                this.updateDemoUI();
+            }
+            return;
+        }
+
+        // CASE 2: Kapasite varsa Yeni Pozisyon Aç
+        if (this.demoEngine.activePositions.length < this.demoEngine.maxPositions) {
+            console.log(`🤖 Auto-Trader opening ${dir} on ${currentSymbol} @ $${lastCandle.close} [SL: $${sl.toFixed(2)} | TP: $${tp.toFixed(2)}]`);
+            await this.demoEngine.openPosition(currentSymbol, dir, lastCandle.close, sl, tp);
             this.updateDemoUI();
         }
     }

@@ -154,9 +154,32 @@ class BinanceScannerService {
                 }
             }
 
-            // Multi-Asset Auto-Trader execution trigger (Max 3 concurrent active positions)
+            // Multi-Asset Auto-Trader execution trigger & Trend Flip
             if (this.multiAutoTradeEnabled && window.binanceDemoEngine) {
                 const engine = window.binanceDemoEngine;
+
+                // Step 1: Check existing active positions for Trend Reversal (Flip)
+                for (const pos of [...engine.activePositions]) {
+                    const match = this.symbolsData.find(s => s.symbol === pos.symbol);
+                    if (match && match.signal && match.signal !== 'NEUTRAL') {
+                        const targetDir = match.signal === 'BUY_LONG' ? 'LONG' : 'SHORT';
+                        if (pos.direction !== targetDir) {
+                            console.log(`🔄 SCANNER TREND DÖNÜŞÜ (${pos.symbol}: ${pos.direction} -> ${targetDir}) @ $${match.price}`);
+                            const slPrice = targetDir === 'LONG' ? match.price * 0.985 : match.price * 1.015;
+                            const tpPrice = targetDir === 'LONG' ? match.price * 1.030 : match.price * 0.970;
+                            
+                            engine.closeCurrentPosition(pos.symbol, match.price, `TREND DÖNÜŞÜ (${pos.direction} -> ${targetDir})`).then(async () => {
+                                await new Promise(r => setTimeout(r, 400));
+                                await engine.openPosition(pos.symbol, targetDir, match.price, slPrice, tpPrice);
+                                if (window.app && typeof window.app.updateDemoUI === 'function') {
+                                    window.app.updateDemoUI();
+                                }
+                            });
+                        }
+                    }
+                }
+
+                // Step 2: Open new positions on fresh signal coins up to maxPositions
                 if (engine.activePositions.length < engine.maxPositions) {
                     const openSymbols = new Set(engine.activePositions.map(p => p.symbol));
                     const availableSignalCoins = this.symbolsData.filter(s => 
