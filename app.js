@@ -10,15 +10,15 @@ class StrategyEngine {
             emaShort: 9,
             emaLong: 21,
             rsiPeriod: 14,
-            rsiBuy: 38,
-            rsiSell: 62,
+            rsiBuy: 45,
+            rsiSell: 55,
             atrPeriod: 14,
-            slMult: 1.5,
-            tpMult: 3.0,
+            slMult: 1.2,
+            tpMult: 2.4,
             volumePeriod: 20,
-            volumeMult: 1.15,
+            volumeMult: 1.0,
             adxPeriod: 14,
-            adxThreshold: 20
+            adxThreshold: 15
         };
     }
 

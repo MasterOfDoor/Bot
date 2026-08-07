@@ -43,10 +43,10 @@ class BinanceScannerService {
         // Initial scan
         this.scanAllSymbols();
 
-        // Repeat scan every 4 seconds
+        // Repeat scan every 2 seconds for high-frequency opportunity detection
         this.scanInterval = setInterval(() => {
             this.scanAllSymbols();
-        }, 4000);
+        }, 2000);
     }
 
     stopScanning() {
@@ -70,31 +70,23 @@ class BinanceScannerService {
                 try {
                     const resp = await fetch(url);
                     if (resp.ok) {
-                        const data = await resp.json();
-                        if (Array.isArray(data) && data.length > 0) {
-                            tickerList = data;
+                        const json = await resp.json();
+                        if (Array.isArray(json) && json.length > 0) {
+                            tickerList = json;
                             break;
                         }
                     }
-                } catch (e) {
-                    console.warn(`Scanner fetch endpoint failed: ${url}`);
-                }
+                } catch (e) {}
             }
 
-            if (!tickerList || !Array.isArray(tickerList)) return;
+            if (!tickerList) return;
 
-            const tradFiPrefixes = ['XAU', 'XAG', 'EUR', 'GBP', 'QQQ', 'SPY', 'IWM', 'DIA', 'TSLA', 'AAPL', 'NVDA', 'AMZN', 'MSFT', 'GOOG', 'META', 'WTI', 'BRENT'];
+            // 2. Filter only USDT pairs and sort by trading volume
+            const usdtPairs = tickerList.filter(t => t.symbol && t.symbol.endsWith('USDT'));
+            usdtPairs.sort((a, b) => parseFloat(b.quoteVolume || 0) - parseFloat(a.quoteVolume || 0));
 
-            // Filter only active USDT crypto contracts (excluding Index / PERP anomalies and TradFi assets)
-            const usdtTickers = tickerList.filter(t => 
-                t.symbol.endsWith('USDT') && 
-                !t.symbol.includes('_') && 
-                !tradFiPrefixes.some(prefix => t.symbol.startsWith(prefix))
-            );
-
-            // Sort by 24h Quote Volume descending & take top 100 liquid pairs
-            usdtTickers.sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume));
-            const topPairs = usdtTickers.slice(0, 100);
+            // Select top 80 pairs for lightning-fast analysis
+            const topPairs = usdtPairs.slice(0, 80);
 
             // Process each symbol's technical metrics
             const updatedData = topPairs.map(t => {
@@ -118,16 +110,16 @@ class BinanceScannerService {
                 
                 // Estimate ADX trend strength based on 24h volatility & price change magnitude
                 const adxVal = Math.min(60, Math.max(10, Math.round(Math.abs(chg) * 3.5 + (pricePosInScale > 70 || pricePosInScale < 30 ? 15 : 5))));
-                const isTrendStrong = adxVal >= 20;
+                const isTrendStrong = adxVal >= 15;
 
-                // Volume confirmation (Liquid pair threshold > $1,000,000 USDT)
-                const isVolumeConfirmed = vol > 1000000;
+                // Volume confirmation (Liquid pair threshold > $300,000 USDT)
+                const isVolumeConfirmed = vol > 300000;
 
-                // Day Trading Signal Evaluation per DAY_TRADING_STRATEGY.md
+                // High-Frequency Day Trading Signal Evaluation
                 let signal = 'NEUTRAL'; // 'BUY_LONG', 'SELL_SHORT', 'NEUTRAL'
-                if (isEmaBullish && rsi < 42 && isTrendStrong && isVolumeConfirmed) {
+                if (isEmaBullish && (rsi < 48 || (chg > 0.8 && rsi < 72)) && isTrendStrong && isVolumeConfirmed) {
                     signal = 'BUY_LONG';
-                } else if (!isEmaBullish && rsi > 58 && isTrendStrong && isVolumeConfirmed) {
+                } else if (!isEmaBullish && (rsi > 52 || (chg < -0.8 && rsi > 28)) && isTrendStrong && isVolumeConfirmed) {
                     signal = 'SELL_SHORT';
                 }
 

@@ -10,7 +10,7 @@ class BinanceDemoEngine {
         this.leverage = parseInt(localStorage.getItem('demo_leverage')) || 10;
         this.marginType = localStorage.getItem('demo_margin_type') || 'ISOLATED';
         this.positionSizePct = parseFloat(localStorage.getItem('demo_position_size_pct')) || 10;
-        this.maxPositions = 3;
+        this.maxPositions = 5;
         this.isAutoTraderEnabled = localStorage.getItem('demo_autotrader') === 'true';
 
         this.activePositions = JSON.parse(localStorage.getItem('demo_active_positions')) || [];
